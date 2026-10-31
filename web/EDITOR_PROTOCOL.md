@@ -1060,6 +1060,8 @@ switch is on `P_GLIDE` (38) holds the same time (a `PUT` does not copy it: set b
 
 **1.14.12 (DET in cents, bytes 18..21):** the DET 2 / 3 knobs set the cents, from -700 to +700 in steps of 1; a CC still sets the coarse byte F2 / F3 (64 = 0, 11 cents a step) and the cents to `(value - 64) * 11`. Cents are sign and magnitude in two 7-bit bytes: byte 18 (DET 2) and 20 (DET 3) hold the magnitude's low 7 bits, byte 19 and 21 the magnitude's bits 7..9 (0..7) with the sign at bit 3 (8 = negative). All zero is 0 cents. A `PUT` must send them; a patch from before 1.14.12 reads as 0 cents on those bytes.
 
+**1.14.25 (TEMPO in the patch, bytes 22..23):** the patch's tempo in BPM, byte 22 the low 7 bits and byte 23 the high bits (40..240). 0 (both) means none: loading the patch keeps the song's tempo, so a patch from before 1.14.25 behaves as before. A patch that carries a tempo sets the song's BPM when it becomes the selected track's; changing the tempo in the ARP, the SEQ or the TAP TEMPO writes it back into the patch. The factory presets carry 120, and 015 ACID LEAD carries 162. The ARP, the SEQ and (later) the delay share this tempo.
+
 **1.14.2 (INFO `49 01 major minor patch`, before `47 01 32`):** the firmware's version (`FMINI_VERSION` in `core.h`). The web editor compares it with its own and shows a pop-up with the installer's link when the device is older (or has no tag, firmware before 1.14.2).
 
 **1.6.1 (INFO `48 01 01`, after `47 01 32`):** the keys' octave. `FMINI_GET` of target 0 ends with the octave + 4 (1..7) after the SLOT,

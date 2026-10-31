@@ -50,7 +50,7 @@ def new_response(f, e0, e1, kbd):
     return np.abs(H4 / (1 + k * Hx * H4)) * 10 ** (F.emph_trim_db(e1) / 20)
 
 
-FGP_RE = re.compile(r"FGP\(" + r",\s*".join([r"(\d+)"] * 22) + r"\),\s*/\* (\d+) (.+?) \*/")
+FGP_RE = re.compile(r"FGP\(" + r",\s*".join([r"(\d+)"] * 24) + r"\),\s*/\* (\d+) (.+?) \*/")
 
 
 def parse(path):

@@ -107,11 +107,11 @@ class Bank:
             vib=0, mosc=False, mflt=False, mmix=0, lfo=(5.0, "SIN", 0, "OFF"), pit=0, trem=0, penv=0,
             glide=0, tune=0, poly=False, sqr=False,
             send=(0, 0, 0, 0), rv=("HALL", 70, 67), dl=("ANALOG", 375, 50), ch=("STEREO", 60, 0.6), dr=("SOFT", 64, 64),
-            arp=("UP", "1/16", 1, 0.5, 0, 127), arp_on=False, oct=0, pat=0, note=""):
+            arp=("UP", "1/16", 1, 0.5, 0, 127), arp_on=False, oct=0, pat=0, note="", bpm=120):
         assert len(name) <= 12, name
         assert len(osc) == 3, name
         sw1 = 0
-        g = [0] * 22
+        g = [0] * 24
         for i, (rng, wave, lv, cents) in enumerate(osc):
             g[i] = R[rng]
             g[3 + i] = W[wave]
@@ -135,6 +135,7 @@ class Bank:
             m = abs(c)
             g[sl], g[sl + 1] = m & 127, (m >> 7 & 7) | (8 if c < 0 else 0)
         g[13] = (1 if glide else 0) | (2 if sqr else 0)
+        g[22], g[23] = clamp(int(bpm), 0, 16383) & 127, clamp(int(bpm), 0, 16383) >> 7   # TEMPO (1.14.25): 40..240, 0 = keep the song's
         g[14] = clamp(64 + int(round(tune / 1.5625)), 0, 127)   # TUNE (cents): 64 = A 440, 1.56 cents a step
         g[15] = clamp(int(mmix), 0, 127)
         g[16] = clamp(int(kbd), 0, 127)

@@ -274,6 +274,9 @@ int main(int argc, char **argv)
             }
             if (x->arp[0] && (x->arp[1] < 1 || x->arp[1] > 14 || x->arp[3] < 1 || x->arp[3] > 4 || x->arp[4] < 1)) { printf("patch %u: arp range\n", k); bad++; }
             on += x->arp[0];
+            if (FMINI_FACTORY[k][FG_BPML] | FMINI_FACTORY[k][FG_BPMH] << 7 ? song.g[G_BPM] != (FMINI_FACTORY[k][FG_BPML] | FMINI_FACTORY[k][FG_BPMH] << 7) : song.g[G_BPM] != 117) {
+                printf("patch %u: tempo %d\n", k, song.g[G_BPM]); bad++;      /* the patch's TEMPO (1.14.25); 0 keeps the song's */
+            }
             if (TSEL->p[P_LEVEL] != x->level || x->level < 60 || x->level > 127) { printf("patch %u: LEVEL %d\n", k, TSEL->p[P_LEVEL]); bad++; }
             if (TSEL->p[P_LRATE] != x->lfo[0] || TSEL->p[P_LWAVE] != x->lfo[1] || TSEL->p[P_LFADE] != x->lfo[2] || TSEL->p[P_LSYNC] != x->lfo[3] ||
                 TSEL->p[P_LD_PIT] != x->mod[0] || TSEL->p[P_LD_AMP] != x->mod[1] || TSEL->p[P_ED_PIT] != x->mod[2]) { printf("patch %u: LFO / mod\n", k); bad++; }
@@ -292,7 +295,6 @@ int main(int argc, char **argv)
             }
         }
         if (on < 44u || on > 56u) { printf("bank: ARP on in %u of 200 patches\n", on); bad++; }
-        if (song.g[G_BPM] != 117) { printf("bank: a patch changed the tempo (%d)\n", song.g[G_BPM]); bad++; }
         if (bad) return 1;
         song.g[G_BPM] = bpm0;                            /* (a Program Change brings the same: ui.c midi_pc_load) */
         ui.mpc[0] = (uint8_t)(0x80u | 14u);              /* 14 RAVE ARP */
@@ -642,6 +644,7 @@ int main(int argc, char **argv)
         if (fa_sq_cur != 3 || trk[0].step[0].note[0] != 60 || trk[0].step[2].note[0] != 67 || trk[0].p[P_SLEN] != 3) { printf("seq record %d\n", fa_sq_cur); return 1; }
         fpress(B_REC);
         if (fa_sq_rec) { printf("rec off\n"); return 1; }
+        song.g[G_BPM] = 240;                             /* the step count below is timed at 240 BPM, as the test always had it (the patches set their own tempo, 1.14.25) */
         fpress(B_PLAY);
         if (transport_req != 1) { printf("play request\n"); return 1; }
         for (i = 0; i < 400; i++) { events_block(CTL); mix_block((int32_t[2 * CTL]){0}, CTL); }

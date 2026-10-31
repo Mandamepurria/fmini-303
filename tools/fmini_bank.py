@@ -901,6 +901,16 @@ def preset_moves(b):
             cntr=co(1.0), kbd=64, fenv=(10, 400, 60), env=(10, 400, 100, 200), poly=False, glide=0, send=(0, 0, 20, 30),
             rv=("HALL", 60, 70), dl=("ANALOG", 375, 30), pat=0)
     P[99] = tmp.p[0]
+    # 1.14.25: 015 ACID LEAD: CUTOFF -2.5, EMPHASIS 8.0, the filter contour's AMOUNT 3.8 (the dials as the screen shows them);
+    # the arpeggiator RATE 1/8, OCTAVES 1; the reverb MIX 0; the TEMPO 162 (the patch's: the ARP, the SEQ and the delay share it).
+    x = P[15]
+    x["e"][0] = round((-2.5 + 5.0) * 127 / 10.0)
+    x["e"][1] = emp(8.0)
+    x["e"][2] = knob(3.8)
+    x["arp"][2] = 1                        # RATE 1/8 (AR in gen_fmini_presets.py)
+    x["arp"][3] = 1                        # OCTAVES 1
+    x["send"][3] = 0                       # reverb MIX 0
+    x["g"][22], x["g"][23] = 162 & 127, 162 >> 7   # TEMPO 162 BPM
 
 def build(b):
     showcase(b)

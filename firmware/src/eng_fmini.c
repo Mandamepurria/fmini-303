@@ -40,6 +40,7 @@ enum {                           /* the patch's bytes */
     FG_GLID,                     /* glide time kept while the GLIDE switch is off (P_GLIDE holds it while on) */
     FG_DC2L, FG_DC2H,            /* DET 2 in cents: a signed 16-bit (low, high byte), -700 .. +700 (1.14.12) */
     FG_DC3L, FG_DC3H,            /* DET 3 in cents, the same */
+    FG_BPML, FG_BPMH,            /* TEMPO in BPM, 7 bits each (lo, hi): 40 .. 240; 0 = none (the song's tempo stays) (1.14.25) */
     FG_NUM
 };
 enum { FS_O1 = 1, FS_O2 = 2, FS_O3 = 4, FS_NZ = 8, FS_PINK = 16, FS_MOSC = 32, FS_MFLT = 64 };   /* FG_SW1 */
@@ -83,7 +84,7 @@ static int32_t fmini_mn[NTRK];                    /* the modulation noise of thi
 /* the highest value of each byte */
 static uint32_t fmini_max(uint32_t i)
 {
-    static const uint8_t MAXV[FG_NUM] = {5, 5, 5, 5, 5, 5, 127, 127, 127, 127, 127, 127, 127, 3, 127, 127, 127, 127, 127, 15, 127, 15};
+    static const uint8_t MAXV[FG_NUM] = {5, 5, 5, 5, 5, 5, 127, 127, 127, 127, 127, 127, 127, 3, 127, 127, 127, 127, 127, 15, 127, 15, 127, 127};
     return i < FG_NUM ? MAXV[i] : 0u;
 }
 
@@ -95,8 +96,8 @@ static void fmini_sanitize(uint8_t *v)
 }
 
 /* --------------------------------------------------------- factory patches --- */
-#define FGP(r1, r2, r3, w1, w2, w3, f2, f3, l1, l2, l3, ln, s1, s2, tn, mm, kb, gl, d2l, d2h, d3l, d3h) \
-    {r1, r2, r3, w1, w2, w3, f2, f3, l1, l2, l3, ln, s1, s2, tn, mm, kb, gl, d2l, d2h, d3l, d3h}
+#define FGP(r1, r2, r3, w1, w2, w3, f2, f3, l1, l2, l3, ln, s1, s2, tn, mm, kb, gl, d2l, d2h, d3l, d3h, bl, bh) \
+    {r1, r2, r3, w1, w2, w3, f2, f3, l1, l2, l3, ln, s1, s2, tn, mm, kb, gl, d2l, d2h, d3l, d3h, bl, bh}
 #define ALLO (FS_O1 | FS_O2 | FS_O3)
 /* what a factory patch sets beyond its preset_t (a load: fmini_app.c fa_factory_extras): the arpeggiator (ON, the MODE the ARP
  * button turns on, RATE, OCT, GATE, SWG, PROB), the LFO (RATE, WAVE, FADE, SYNC), the common modulation (LFO -> pitch, LFO ->
@@ -121,7 +122,11 @@ static void fmini_set_patch(uint32_t tr, const uint8_t *v)
     memcpy(fmini_patch[tr], s, FG_SIZE);
     RING_PUBLISH();
     fmini_pgen[tr]++;
+    if (tr == song.sel % NTRK && (s[FG_BPML] | s[FG_BPMH] << 7))
+        song.g[G_BPM] = (int16_t)clamp(s[FG_BPML] | s[FG_BPMH] << 7, 40, 240);
 }
+/* the tempo of patch g (BPM; 0 = none) */
+static uint32_t fmini_bpm(const uint8_t *g) { return g[FG_BPML] | (uint32_t)g[FG_BPMH] << 7; }
 
 static void fmini_slot_patch(uint32_t s, uint8_t *dst);   /* fmini_bank.c: the patch of a slot's record */
 

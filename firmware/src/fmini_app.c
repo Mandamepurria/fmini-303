@@ -700,6 +700,7 @@ static void fa_ar_turn(uint32_t row, int32_t s)
         ml_knob(t, FA_AR_ID[row]);
     } else {
         song.g[G_BPM] = (int16_t)clamp(song.g[G_BPM] + fmg_acc(EN_ALGO, s, 200), GP[G_BPM].min, GP[G_BPM].max);
+        fmg_tempo_sync();
     }
 }
 /* a pop-up's frame: the orange border, the title (the same size for every pop-up) */
@@ -786,6 +787,7 @@ static void fa_tp_begin(void)
 static void fa_tp_turn(int32_t s)
 {
     song.g[G_BPM] = (int16_t)clamp(song.g[G_BPM] + fmg_acc(EN_ALGO, s, 200), GP[G_BPM].min, GP[G_BPM].max);
+    fmg_tempo_sync();
 }
 /* the tempo is the mean beat of the taps of this measurement: from the first two taps on, the span of the last five
  * (or fewer) over its beats, so one early or late tap moves it little. A tap less than 250 ms after the last is a
@@ -811,6 +813,7 @@ static void fa_tp_tap(void)
     span = now - fa_tp_ts[0];
     beats = fa_tp_n - 1u;                                 /* the intervals: each one a beat */
     song.g[G_BPM] = (int16_t)clamp((int32_t)((60000u * beats + span / 2u) / span), GP[G_BPM].min, GP[G_BPM].max);
+    fmg_tempo_sync();
 }
 static void fa_tp_draw(void)
 {
@@ -1084,6 +1087,7 @@ static void fa_ctl_apply(uint32_t n, uint32_t v)
             midi_cc_set(t, FA_AR_ID[n], v);
         else
             song.g[G_BPM] = (int16_t)(40 + (int32_t)v * 200 / 127);
+            fmg_tempo_sync();
         return;
     }
     fa_ctl_loc(n, &pg, &i);

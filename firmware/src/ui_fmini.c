@@ -88,6 +88,17 @@ static void fmg_commit(const uint8_t *p, uint32_t b)
     t->p[P_E7] = FMINI_OWN;
     motion_undo_done(t);
 }
+/* the song's tempo (ARP, SEQ, TAP, the CC) is the selected patch's: its tempo bytes follow it (1.14.25) */
+static void fmg_tempo_sync(void)
+{
+    uint32_t tr = song.sel % NTRK, v = (uint32_t)song.g[G_BPM];
+    uint8_t p[FG_SIZE];
+    if (fmini_bpm(fmini_patch[tr]) == v)
+        return;
+    memcpy(p, fmini_patch[tr], FG_SIZE);
+    p[FG_BPML] = (uint8_t)(v & 127u), p[FG_BPMH] = (uint8_t)(v >> 7);
+    fmg_commit(p, FG_BPML);
+}
 /* byte b of the selected track's patch = v */
 static void fmg_write(uint32_t b, uint32_t v)
 {
