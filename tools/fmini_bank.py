@@ -880,6 +880,19 @@ def preset_moves(b):
             cutoff=600, emph=3.0, cntr=co(2.2), kbd=50, fenv=(1500, 3000, 70), env=(1800, 3000, 110, 3500), poly=True,
             vib=30, lfo=(0.15, "TRI", 0, "OFF"), send=(0, 60, 50, 100), rv=("CLOUD", 95, 60), dl=("TAPE", 500, 50), pat=5)
     P[183] = tmp.p[0]
+    # 1.14.23: 008 and 183 trade places (names and sounds together)
+    swap(8, 183)
+    # 1.14.23: 009 and 174 trade places (names and sounds together)
+    swap(9, 174)
+    # 1.14.23: DETUNE 2 -0.10 (cents -10, in the cents bytes; the coarse byte is the nearest step) on 010 and 040
+    def det_cents(c):
+        m = abs(c)
+        return m & 127, (m >> 7 & 7) | (8 if c < 0 else 0)
+    for i in (10, 40):
+        P[i]["g"][6] = 63
+        P[i]["g"][18], P[i]["g"][19] = det_cents(-10)
+    # 1.14.23: 010 EMPHASIS 3.2
+    P[10]["e"][1] = emp(3.2)
 
 def build(b):
     showcase(b)
