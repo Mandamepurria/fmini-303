@@ -893,6 +893,14 @@ def preset_moves(b):
         P[i]["g"][18], P[i]["g"][19] = det_cents(-10)
     # 1.14.23: 010 EMPHASIS 3.2
     P[10]["e"][1] = emp(3.2)
+    # 1.14.24: 099 UFO is copied over 009 (the whole patch, its name too)
+    P[9] = copy.deepcopy(P[99])
+    # 1.14.24: 099 becomes a new patch, NEW 099 (a placeholder: a plain saw lead until you say what you want)
+    tmp = Bank()
+    tmp.add("NEW 099", "lead", (o("8", "SAW", 100), o("8", "SAW", 90, 7), osc_off()), cutoff=1200, emph=3.0,
+            cntr=co(1.0), kbd=64, fenv=(10, 400, 60), env=(10, 400, 100, 200), poly=False, glide=0, send=(0, 0, 20, 30),
+            rv=("HALL", 60, 70), dl=("ANALOG", 375, 30), pat=0)
+    P[99] = tmp.p[0]
 
 def build(b):
     showcase(b)
