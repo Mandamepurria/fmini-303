@@ -678,6 +678,10 @@ static __attribute__((noinline)) void spread_sum(int32_t *out)
 /* render one block of a part into out (cleared here); returns the voices rendered */
 /* Channel bend is live performance state, outside projects/presets. Q8 semitones. */
 static int32_t midi_bend_q8[NTRK], midi_bend_target[NTRK];
+#ifdef FMINI_DIAG                                  /* diagnostic build only: the bend's path, shown on the FMINI screen (fa_diag) */
+static uint32_t dg_bend_n, dg_on_n;
+static int32_t dg_bend_raw, dg_on_bend, dg_on_tgt, dg_on_q8, dg_run_q8, dg_on_note;
+#endif
 static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
 {
     const engine_t *e = ENGINES[t->engine];
@@ -697,6 +701,10 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
         midi_bend_q8[ti] += d > 0 ? (d < 4 ? d : (d + 3) / 4) : (d > -4 ? d : (d - 3) / 4);
     }
     bend = midi_bend_q8[ti];
+#ifdef FMINI_DIAG
+    if (ti == 0)
+        dg_run_q8 = bend;
+#endif
     bend16 = bend >= 0 ? bend / 16 : -((-bend + 15) / 16);
     bend_fine = (bend - bend16 * 16) * 2367 / 2560;
     uint32_t nr = 0, fade = t->xf_on && t->xf;

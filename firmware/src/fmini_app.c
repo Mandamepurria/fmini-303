@@ -1444,6 +1444,36 @@ static uint32_t fa_signature(void)
 }
 
 static void fa_splash(void);
+#ifdef FMINI_DIAG
+/* diagnostic build: the bend's path at the last note-on (the wheel's message count and value, the note's bend, its target, the voice's bend) */
+static void fa_cat(char *d, const char *s)
+{
+    uint32_t n = str_len(d), i = 0;
+    while (s[i] && n < 39u)
+        d[n++] = s[i++];
+    d[n] = 0;
+}
+static void fa_diag(void)
+{
+    char b[40], t[16];
+    b[0] = 0;
+    fa_cat(b, "WHEEL MSG ");
+    fmt_int(t, (int32_t)dg_bend_n); fa_cat(b, t);
+    fa_cat(b, " RAW "); fmt_int(t, dg_bend_raw); fa_cat(b, t);
+    fa_ctext(120, 4, &AF_X, b, FA_OR);
+    b[0] = 0;
+    fa_cat(b, "NOTE "); fmt_int(t, dg_on_note); fa_cat(b, t);
+    fa_cat(b, " #"); fmt_int(t, (int32_t)dg_on_n); fa_cat(b, t);
+    fa_cat(b, " ON "); fmt_int(t, dg_on_bend); fa_cat(b, t);
+    fa_ctext(120, 14, &AF_X, b, FA_OR);
+    b[0] = 0;
+    fa_cat(b, "TGT "); fmt_int(t, dg_on_tgt); fa_cat(b, t);
+    fa_cat(b, " Q8 "); fmt_int(t, dg_on_q8); fa_cat(b, t);
+    fa_cat(b, " RUN "); fmt_int(t, dg_run_q8); fa_cat(b, t);
+    fa_ctext(120, 24, &AF_X, b, FA_OR);
+}
+#endif
+
 static void fa_draw(void)
 {
     uint32_t sig = fa_signature(), band;
@@ -1461,6 +1491,10 @@ static void fa_draw(void)
         cv_oy = -(int32_t)band * 120;
         cv_cy0 = 0;
         fa_scene();
+#ifdef FMINI_DIAG
+        if (band == 0u)
+            fa_diag();
+#endif
         cv_oy = 0;
         cv_blit(0, band * 120u);
     }

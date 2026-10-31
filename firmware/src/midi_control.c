@@ -145,6 +145,13 @@ static void midi_note_event(uint32_t ch, uint32_t note, uint32_t vel)
         if (id)
             midi_release(ch, note);
         midi_expression(t, c);
+#ifdef FMINI_DIAG
+        dg_on_n++;
+        dg_on_bend = c->bend;
+        dg_on_tgt = midi_bend_target[trk_index(t)];
+        dg_on_q8 = midi_bend_q8[trk_index(t)];
+        dg_on_note = (int32_t)note;
+#endif
         if (t != TSEL)
             midi_hint = (uint8_t)(trk_index(t) + 1u);
         midi_seen |= (uint8_t)(1u << trk_index(t));   /* (1.5.5: only noted; the UI does the rest) */
@@ -414,6 +421,10 @@ static void __attribute__((noinline)) midi_event(uint32_t st, uint32_t ch, uint3
         midi_note_event(ch, d1, st == 0x90u ? d2 : 0);
     else if (st == 0xE0u) {
         midi_channel(ch)->bend = (int16_t)((int32_t)(d1 | (d2 << 7)) - 8192);
+#ifdef FMINI_DIAG
+        dg_bend_n++;
+        dg_bend_raw = midi_channel(ch)->bend;
+#endif
         midi_expression_channel(ch);
     } else if (st == 0xB0u) {
         mod_midi(midi_track(ch), st, d1, d2);
