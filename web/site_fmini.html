@@ -421,7 +421,7 @@ const TEXT = {
     badpkg: "O arquivo a instalar está danificado. Recarregue a página.",
     leave: "Gravando. Não feche a página.",
     pick_t: "Qual destes é o seu FM-1?", pick_d: "Não achei o FM-1 pelo nome: outro firmware personalizado pode dar outro nome ao USB. Escolha na lista o dispositivo MIDI que é o FM-1 (com o USB dele conectado):", pick_b: "Instalar neste dispositivo", pick_c: "Cancelar",
-    busy_t: "Instalação em andamento: não feche esta página!", busy_d: "Não troque de aba ou de janela, não minimize o navegador, não desconecte o USB nem desligue o FM-1 até aparecer \"Pronto\". A tela do FM-1 pode ficar apagada ou reiniciar durante o processo: é normal.",
+    busy_t: "Instalação em andamento: não feche esta página!", busy_d: "Pode trocar de aba ou de programa. Não feche a página, não desconecte o USB nem desligue o FM-1 até aparecer \"Pronto\". A tela do FM-1 pode ficar apagada ou reiniciar durante o processo: é normal.",
     license: "GPL-3.0, sem garantia. Código-fonte:",
     ready: "Pronto. Conecte o FM-1 e aperte Instalar.",
     step1: "Conectar", step2: "Instalar", step3: "Tocar",
@@ -453,7 +453,7 @@ const TEXT = {
     badpkg: "The file to install is damaged. Reload the page.",
     leave: "Writing. Do not close the page.",
     pick_t: "Which one is your FM-1?", pick_d: "I could not find the FM-1 by name: another custom firmware may name its USB device differently. Pick the MIDI device that is the FM-1 from the list (with its USB connected):", pick_b: "Install on this device", pick_c: "Cancel",
-    busy_t: "Installing: do not close this page!", busy_d: "Do not switch tabs or windows, minimize the browser, unplug the USB cable or power off the FM-1 until it says Done. The FM-1 screen may go blank or restart meanwhile: that is normal.",
+    busy_t: "Installing: do not close this page!", busy_d: "You can switch tabs or apps. Do not close the page, unplug the USB cable or power off the FM-1 until it says Done. The FM-1 screen may go blank or restart meanwhile: that is normal.",
     license: "GPL-3.0, no warranty. Source:",
     ready: "Ready. Connect your FM-1 and press Install.",
     step1: "Connect", step2: "Install", step3: "Play",
@@ -676,7 +676,30 @@ document.querySelectorAll(".curver-b").forEach((e) => { e.textContent = "(v" + m
 let writing = false;
 let wake = null;
 const keepAwake = async (on) => { try { if (on && navigator.wakeLock) wake = await navigator.wakeLock.request("screen"); else if (wake) { await wake.release(); wake = null; } } catch (_) {} };
-const lockInstaller = (on) => { keepAwake(on); writing = on; $("go").disabled = on || !image; };
+// While an install runs, the page is kept from being frozen or paused in the background: a Web Lock (the browser does not
+// freeze a page that holds one), a silent audio context (a page that makes sound is not throttled as hard) and the
+// screen wake lock, asked again when the tab comes back (the browser drops it when the tab is hidden).
+let holdRelease = null, holdAudio = null;
+const holdPage = (on) => {
+  if (on) {
+    try { if (navigator.locks) navigator.locks.request("fm1-install", () => new Promise((r) => { holdRelease = r; })).catch(() => {}); } catch (_) {}
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC && !holdAudio) {
+        holdAudio = new AC();
+        const o = holdAudio.createOscillator(), g = holdAudio.createGain();
+        g.gain.value = 0.000001;
+        o.connect(g).connect(holdAudio.destination);
+        o.start();
+      }
+    } catch (_) {}
+  } else {
+    if (holdRelease) { holdRelease(); holdRelease = null; }
+    if (holdAudio) { holdAudio.close().catch(() => {}); holdAudio = null; }
+  }
+};
+const lockInstaller = (on) => { keepAwake(on); holdPage(on); writing = on; $("go").disabled = on || !image; };
+document.addEventListener("visibilitychange", () => { if (!document.hidden && writing) keepAwake(true); });
 window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault(); e.returnValue = t("leave"); } });
 
 (async () => {

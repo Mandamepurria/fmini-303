@@ -10,7 +10,26 @@
 const HS_QUERY = [0xF0, 0x00, 0x32, 0x45, 0x00, 0x00, 0x00, 0x40, 0x7F, 0xF7];
 const UPGRADE = [0xF0, 0x22, 0x24, 0x35, 0x7F, 0xF7];
 const MAXDATA = 512;
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Waits come from a worker's timer: a page's timers are clamped to 1 s (and more) when the tab is in the background,
+// which made every 10 ms packet wait a second. The worker's timers are not. Without workers, the page's timers.
+let timerWorker = null, timerSeq = 0;
+const timerWaiters = new Map();
+function timers() {
+  if (timerWorker !== null) return timerWorker;
+  try {
+    const src = "onmessage=(e)=>{setTimeout(()=>postMessage(e.data.id),e.data.ms)};";
+    timerWorker = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+    timerWorker.onmessage = (e) => { const r = timerWaiters.get(e.data); timerWaiters.delete(e.data); if (r) r(); };
+  } catch (_) { timerWorker = false; }
+  return timerWorker;
+}
+const sleep = (ms) => new Promise((r) => {
+  const w = timers();
+  if (!w) { setTimeout(r, ms); return; }
+  const id = ++timerSeq;
+  timerWaiters.set(id, r);
+  w.postMessage({ id, ms });
+});
 const IS_OTA = (id) => /^ota-/i.test(id.model);
 
 // errors carry a code the pages translate: notfound, model, stopped, noloader, lost, noreturn,
@@ -83,9 +102,7 @@ class Link {
   drain() { this.q.length = 0; }
   async read(ms) {
     if (!this.q.length) {
-      let tm;
-      await Promise.race([new Promise((r) => { this.waiter = r; }), new Promise((r) => { tm = setTimeout(r, ms); })]);
-      clearTimeout(tm);
+      await Promise.race([new Promise((r) => { this.waiter = r; }), sleep(ms)]);
       this.waiter = null;
     }
     return this.q.shift() || null;
