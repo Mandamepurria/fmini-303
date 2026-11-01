@@ -1246,6 +1246,26 @@ static void fa_pp_draw(void)
     fa_ctext(120, 84, &AF_L, num, FA_OR);
     fa_ctext(120, 126, f, nm, FA_CR);
 }
+/* the CPU warning: over the critical level the audio cuts voices (audio.c shed_check) and this pop-up shows 0.3 s; one per episode
+ * (a new one only after 0.3 s without an overload) */
+static uint32_t fa_cpu_until, fa_cpu_last, fa_cpu_seen;
+extern volatile uint32_t cpu_crit;
+static int fa_cpu_on(void) { return fa_cpu_until && (int32_t)(fm1_ms - fa_cpu_until) < 0; }
+static void fa_cpu_watch(void)
+{
+    if (cpu_crit == fa_cpu_seen)
+        return;
+    fa_cpu_seen = cpu_crit;
+    if ((int32_t)(fm1_ms - fa_cpu_last) >= 300)
+        fa_cpu_until = fm1_ms + 300u;
+    fa_cpu_last = fm1_ms;
+}
+static void fa_cpu_draw(void)
+{
+    cv_rect(20, 96, 200, 26, FA_OR);
+    cv_rect(22, 98, 196, 22, FA_RGB(0x1B, 0x19, 0x17));
+    fa_ctext(120, 102, &AF_M, "Warning: CPU High", FA_OR);
+}
 /* every frame: a new preset (PRESETS, a Program Change, a saved one loaded) is shown in the pop-up; 1 = it changed now
  * (the caller goes HOME) */
 static uint32_t fa_track_preset(void)
@@ -1409,6 +1429,8 @@ static void fa_scene(void)
         fa_tp_draw();
     if (fa_pp_on())
         fa_pp_draw();
+    if (fa_cpu_on())
+        fa_cpu_draw();
 }
 
 static uint32_t fa_signature(void)
@@ -1425,7 +1447,7 @@ static uint32_t fa_signature(void)
         h = (h ^ fmini_patch[0][i]) * 16777619u;
     for (i = 0; i < P_COUNT; i++)
         h = (h ^ (uint32_t)t->p[i]) * 16777619u;
-    h = (h ^ fa_base ^ (uint32_t)fa_pp_on() << 8) * 16777619u;
+    h = (h ^ fa_base ^ (uint32_t)fa_pp_on() << 8 ^ (uint32_t)fa_cpu_on() << 9) * 16777619u;
     h = (h ^ fa_gl ^ (uint32_t)fa_gl_row << 3 ^ (uint32_t)fa_cc_i << 6 ^ (uint32_t)fm_midi_src << 12 ^ (uint32_t)fm_bt << 17 ^ (uint32_t)fm_midi_ch << 14 ^ (uint32_t)fm_bend_mode << 19) * 16777619u;
     for (i = 0; i < FA_NCC; i++)
         h = (h ^ fa_cc[i]) * 16777619u;
@@ -1487,7 +1509,10 @@ static void fa_diag(void)
 
 static void fa_draw(void)
 {
-    uint32_t sig = fa_signature(), band;
+    uint32_t sig;
+    uint32_t band;
+    fa_cpu_watch();
+    sig = fa_signature();
     if (sig == fa_sig_prev && !ui.force)
         return;
     fa_sig_prev = sig;
@@ -2190,6 +2215,9 @@ static void fa_init(void)
     fa_last_sl = -2;
     fa_last_user = 0;
     fa_pp_until = 0;
+    fa_cpu_until = 0;
+    fa_cpu_seen = cpu_crit;
+    fa_cpu_last = fm1_ms - 1000u;
     fa_mono();
     fa_page = 0;
     fa_track_preset();                                      /* the patch loaded at power-on: shown, no pop-up */
