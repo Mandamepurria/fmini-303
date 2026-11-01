@@ -151,6 +151,7 @@ static void midi_note_event(uint32_t ch, uint32_t note, uint32_t vel)
         dg_on_tgt = midi_bend_target[trk_index(t)];
         dg_on_q8 = midi_bend_q8[trk_index(t)];
         dg_on_note = (int32_t)note;
+        dg_on_ch = (int32_t)ch + 1;
 #endif
         if (t != TSEL)
             midi_hint = (uint8_t)(trk_index(t) + 1u);
@@ -424,6 +425,7 @@ static void __attribute__((noinline)) midi_event(uint32_t st, uint32_t ch, uint3
 #ifdef FMINI_DIAG
         dg_bend_n++;
         dg_bend_raw = midi_channel(ch)->bend;
+        dg_bend_ch = (int32_t)ch + 1;
 #endif
         midi_expression_channel(ch);
     } else if (st == 0xB0u) {

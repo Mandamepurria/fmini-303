@@ -681,6 +681,7 @@ static int32_t midi_bend_q8[NTRK], midi_bend_target[NTRK];
 #ifdef FMINI_DIAG                                  /* diagnostic build only: the bend's path, shown on the FMINI screen (fa_diag) */
 static uint32_t dg_bend_n, dg_on_n;
 static int32_t dg_bend_raw, dg_on_bend, dg_on_tgt, dg_on_q8, dg_run_q8, dg_on_note;
+static int32_t dg_bend_ch, dg_on_ch;               /* MIDI channel (1..16) of the last wheel message and of the last note-on, 0 = none yet */
 #endif
 static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
 {

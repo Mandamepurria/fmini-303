@@ -1478,7 +1478,10 @@ static void fa_diag(void)
     fa_pc_text(120, 144, &AF_S, b, FA_CR, bgd);
     b[0] = 0; fa_cat(b, "BEND DA VOZ AGORA: "); fmt_int(t, dg_run_q8); fa_cat(b, t);
     fa_pc_text(120, 164, &AF_S, b, FA_CR, bgd);
-    fa_pc_text(120, 196, &AF_S, "(atualiza ao tocar e mexer a roda)", FA_MU, bgd);
+    b[0] = 0; fa_cat(b, "CANAL DA RODA: "); fmt_int(t, dg_bend_ch); fa_cat(b, t);
+    fa_cat(b, "   CANAL DA NOTA: "); fmt_int(t, dg_on_ch); fa_cat(b, t);
+    fa_pc_text(120, 184, &AF_S, b, FA_CR, bgd);
+    fa_pc_text(120, 206, &AF_S, "(atualiza ao tocar e mexer a roda)", FA_MU, bgd);
 }
 #endif
 
