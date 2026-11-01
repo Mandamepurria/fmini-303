@@ -35,6 +35,11 @@ static uint32_t midi_targets(uint32_t ch)
     return midi_channel(ch)->targets | (1u << trk_index(midi_track(ch)));
 }
 
+#if FELUCCA_FMINI_ONLY
+/* FMini-1 has one part and every channel plays it (midi_slot is 0): one wheel for all channels, the last pitch-bend
+ * from any channel wins (GLO > MIDI IN ALL). Per-channel bend would reset the part's bend at every note-on. */
+static int16_t fm_wheel;
+#endif
 static void midi_expression(track_t *t, const midi_channel_t *c)
 {
     int32_t range = ((int32_t)c->semis * 100 + c->cents) * 256 / 100;
@@ -43,8 +48,8 @@ static void midi_expression(track_t *t, const midi_channel_t *c)
 #if FELUCCA_FMINI_ONLY
     {   /* FMini-1: GLO > PITCH BEND (+-2, +-12, +2 -12, +2 -24 semitones); RPN 0 does not change it */
         static const uint8_t UP[4] = {2, 12, 2, 2}, DN[4] = {2, 12, 12, 24};
-        int32_t r = (int32_t)(c->bend < 0 ? DN : UP)[fm_bend_mode & 3u] * 256;
-        midi_bend_target[trk_index(t)] = (int32_t)c->bend * r / (c->bend < 0 ? 8192 : 8191);
+        int32_t r = (int32_t)(fm_wheel < 0 ? DN : UP)[fm_bend_mode & 3u] * 256;
+        midi_bend_target[trk_index(t)] = (int32_t)fm_wheel * r / (fm_wheel < 0 ? 8192 : 8191);
         (void)range;
         return;
     }
@@ -352,6 +357,9 @@ static void midi_control(uint32_t ch, uint32_t cc, uint32_t value)
         break;
     case 121:                                      /* Reset All Controllers, keep bend sensitivity */
         c->bend = 0;
+#if FELUCCA_FMINI_ONLY
+        fm_wheel = 0;
+#endif
         c->wheel = 0;
         c->rpn_msb = c->rpn_lsb = 127;
         midi_expression_channel(ch);
@@ -422,6 +430,9 @@ static void __attribute__((noinline)) midi_event(uint32_t st, uint32_t ch, uint3
         midi_note_event(ch, d1, st == 0x90u ? d2 : 0);
     else if (st == 0xE0u) {
         midi_channel(ch)->bend = (int16_t)((int32_t)(d1 | (d2 << 7)) - 8192);
+#if FELUCCA_FMINI_ONLY
+        fm_wheel = midi_channel(ch)->bend;
+#endif
 #ifdef FMINI_DIAG
         dg_bend_n++;
         dg_bend_raw = midi_channel(ch)->bend;
