@@ -215,6 +215,8 @@
   body.finished #phases li.done::before { background: var(--ok); }
 
   .note { color: var(--dim); font-size: 14.5px; margin: 18px 0 0; }
+  .fwother { margin: 10px 0 0; }
+  #fwpick { background: transparent; color: var(--dim); border: 1px solid var(--line); font-size: 13px; padding: 6px 10px; cursor: pointer; }
   .note.warn { color: #ffb37a; }
   details { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
   summary { cursor: pointer; color: var(--dim); font-size: 14.5px; }
@@ -357,6 +359,7 @@
       </ol>
 
       <button id="go" disabled><span data-t="install"></span> <small class="curver-b"></small></button>
+      <p class="fwother"><button id="fwpick" type="button" data-t="fw_pick"></button><input type="file" id="fwfile" accept=".fwsc" hidden></p>
 
       <dialog class="portpick" id="portpick"><b data-t="pick_t"></b><p data-t="pick_d"></p><select id="portsel" size="5" aria-label="MIDI"></select><button id="portgo" type="button" data-t="pick_b"></button><button id="portno" type="button" class="ghost" data-t="pick_c"></button></dialog>
       <div class="busywarn" role="alert"><b data-t="busy_t"></b><span data-t="busy_d"></span></div>
@@ -372,8 +375,6 @@
       <p class="note warn" data-t="warn"></p>
       <p class="note" data-t="direct"></p>
       <p class="note" data-t="beta"></p>
-      <p class="note"><span data-t="brick"></span>
-        <a href="https://github.com/kurogedelic/FM-1-transporter" target="_blank" rel="noopener">FM-1-transporter</a></p>
 
       <details>
         <summary data-t="logT"></summary>
@@ -402,9 +403,9 @@ const TEXT = {
     intro: "Conecte o FM-1 por USB. (Funciona no Chrome ou no Edge.)",
     warn: "Não desconecte o cabo USB durante a gravação.",
     install: "Instalar", other: "English",
+    fw_pick: "Instalar outro firmware (.fwsc)…", fw_bad: "Este arquivo não é um firmware FM-1 válido.",
     editor: "Editor",
     direct: "Ligue o cabo USB direto no computador. Não precisa de Probe nem de Transporter.",
-    brick: "Se a instalação falhar e o FM-1 não ligar mais, recuperá-lo exige um Transporter:",
     beta: "O FMini-1 é uma versão experimental. O autor não se responsabiliza se o seu FM-1 for danificado ou se comportar de forma estranha por causa deste firmware personalizado. Use por sua conta e risco.",
     nomidi: "Este navegador não consegue. Abra a página no Chrome ou no Edge.", loadfail: "Não foi possível carregar: ",
     start: "Iniciando", verify: "Verificando", loader: "Entrando no modo de atualização", write: "Gravando",
@@ -434,9 +435,9 @@ const TEXT = {
     intro: "Connect the FM-1 by USB. (Works in Chrome or Edge.)",
     warn: "Do not unplug the USB cable while writing.",
     install: "Install", other: "Português",
+    fw_pick: "Install another firmware (.fwsc)…", fw_bad: "This file is not a valid FM-1 firmware.",
     editor: "Editor (after installing: edit sounds and sequences from the computer)",
     direct: "Connect the USB cable directly to the computer. No probe or Transporter is needed.",
-    brick: "If an install fails and the FM-1 no longer starts, recovering it needs a Transporter:",
     beta: "FMini-1 is an experimental release. The author accepts no responsibility if your FM-1 is damaged or misbehaves because of this custom firmware. Use it at your own risk.",
     nomidi: "This browser cannot do it. Open the page in Chrome or Edge.", loadfail: "Could not load: ",
     start: "Starting", verify: "Verifying", loader: "Switching to update mode", write: "Writing",
@@ -632,7 +633,7 @@ $("tipx").addEventListener("click", () => { $("tip").hidden = true; });
 $("tip").addEventListener("click", (e) => { if (e.target.id === "tip") $("tip").hidden = true; });
 $("lang").addEventListener("click", () => { lang = LANGS[(LANGS.indexOf(lang) + 1) % LANGS.length]; applyLang(); });
 applyLang();
-const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textContent = t(k) + arg; if (k === "done") $("tip").hidden = false; document.body.classList.toggle("bad", ["error","denied","notfound","model","lost","noloader","noreturn","mismatch","badpkg","stopped","loadfail","nomidi"].includes(k)); };
+const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textContent = t(k) + arg; if (k === "done") $("tip").hidden = false; document.body.classList.toggle("bad", ["error","denied","notfound","model","lost","noloader","noreturn","mismatch","badpkg","stopped","loadfail","nomidi","fw_bad"].includes(k)); };
 const say = (txt) => { lastKey = null; $("status").textContent = txt; };
 const log = (t) => { $("log").textContent += t + "\n"; };
 const PHASES = ["verify", "loader", "write", "reboot", "done"];
@@ -668,6 +669,7 @@ function writeBar(n) {
 function stopCrawl() { if (crawl) clearInterval(crawl); crawl = null; }
 let image = null;
 const meta = /*META*/;
+let product = meta.product;                 /* the package to install: the site's, or one chosen below */
 document.querySelectorAll(".curver").forEach((e) => { e.textContent = "v" + meta.version; });
 document.querySelectorAll(".curver-b").forEach((e) => { e.textContent = "(v" + meta.version + ")"; });
 
@@ -683,7 +685,7 @@ window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault
     const r = await fetch(meta.pkg);
     if (!r.ok) throw new Error(`${meta.pkg}: HTTP ${r.status}`);
     const pkg = new Uint8Array(await r.arrayBuffer());
-    if (productOf(pkg) !== meta.product) { sayK("badpkg"); return; }
+    if (productOf(pkg) !== product) { sayK("badpkg"); return; }
     image = logicalImage(pkg);
     say(t("ready"));
     $("go").disabled = false;
@@ -715,9 +717,9 @@ async function runInstall(portName) {
     const ota = await up.find((id) => /^ota-/i.test(id.model));
     if (ota) {
       ota.link.close();
-      sayK((await up.resume(image, step, meta.product)) ? "done" : "stopped");
+      sayK((await up.resume(image, step, product)) ? "done" : "stopped");
     } else {
-      await up.install(image, meta.product, step);
+      await up.install(image, product, step);
     }
   } catch (e) {
     if (e && e.code && TEXT[lang][e.code]) sayK(e.code, e.detail || "");
@@ -739,6 +741,23 @@ function offerPorts(midi) {
 $("portgo").addEventListener("click", () => { const n = $("portsel").value; $("portpick").close(); if (n) runInstall(n); });
 $("portno").addEventListener("click", () => $("portpick").close());
 $("go").addEventListener("click", () => runInstall(null));
+const hasMarker = (b) => { const m = "FELUCCA-LOADER-1"; for (let i = 0; i + m.length <= b.length; i++) { let k = 0; while (k < m.length && b[i + k] === m.charCodeAt(k)) k++; if (k === m.length) return true; } return false; };
+$("fwpick").addEventListener("click", () => $("fwfile").click());
+$("fwfile").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file || writing) return;
+  try {
+    const pkg = new Uint8Array(await file.arrayBuffer());
+    const prod = productOf(pkg);
+    if (!/^FM-1_9\d\d$/.test(prod) || !hasMarker(pkg)) { sayK("fw_bad"); $("go").disabled = true; image = null; return; }
+    image = logicalImage(pkg);
+    product = prod;
+    say(`${file.name} (${prod})`);
+    $("go").disabled = false;
+    setBar(0, null);
+  } catch (_) { sayK("fw_bad"); $("go").disabled = true; image = null; }
+});
 
 
 /* ---- hero: the Minimoog goes into the FM-1's screen as the page scrolls (reduced motion: the finished picture) ---- */
