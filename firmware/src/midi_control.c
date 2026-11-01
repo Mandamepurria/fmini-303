@@ -11,6 +11,7 @@ typedef struct {
     uint8_t owned[NTRK];                    /* held/pedal notes per track, at most 128 per channel */
     uint8_t ready, semis, cents;
     uint8_t rpn_msb, rpn_lsb;
+    uint8_t bank_msb, bank_lsb;             /* CC0 / CC32: bank select, for Program Change (bank x100 + program) */
 } midi_channel_t;
 static midi_channel_t midi_ch[16];
 /* Low bits: track + 1. High bit: key released, held by its channel's pedal. */
@@ -371,6 +372,8 @@ static void midi_control(uint32_t ch, uint32_t cc, uint32_t value)
         else
             midi_pedal_up(ch);
         break;
+    case 0: c->bank_msb = (uint8_t)value; break;   /* bank select: the next Program Change uses it */
+    case 32: c->bank_lsb = (uint8_t)value; break;
     case 101: c->rpn_msb = (uint8_t)value; break;
     case 100: c->rpn_lsb = (uint8_t)value; break;
     case 99: case 98:                              /* NRPN selection cancels RPN data entry */
@@ -416,7 +419,7 @@ static void __attribute__((noinline)) midi_route_block(void)
 /* Program Change (1.5.1, #179 by renebohne): the track the channel plays (ROUT as for notes) takes program d1. Only
  * noted here, 0x80 | d1 per track (a later one before the main loop wins): a sound load is the main loop's work
  * (undo, motion, FM6's patch), never the audio ISR's. ui.mpc (ui.c; a build without the UI: none) */
-static volatile uint8_t *const mpc_io;
+static volatile uint16_t *const mpc_io;     /* 0x80 | program (bits 0..6) | bank << 8 (ui.c midi_pc_poll) */
 
 /* Keep the occasional controller/panic dispatch outside the hot rendering loop. Channel voice messages only
  * (realtime and clock are handled in events_block, SysEx never reaches here). With ROUT CH1-4 channels
@@ -444,6 +447,10 @@ static void __attribute__((noinline)) midi_event(uint32_t st, uint32_t ch, uint3
         midi_control(ch, d1, d2);
     } else if (st == 0xD0u)
         mod_midi(midi_track(ch), st, d1, d2);
-    else if (st == 0xC0u && mpc_io)                /* Program Change: the main loop loads it (ui.c midi_pc_poll) */
-        mpc_io[trk_index(midi_track(ch))] = (uint8_t)(0x80u | d1);
+    else if (st == 0xC0u && mpc_io && d1 < 100u) { /* Program Change 0..99 in the bank selected by CC0 / CC32; the main
+                                                    * loop loads bank x 100 + program (ui.c midi_pc_poll) */
+        midi_channel_t *c = midi_channel(ch);
+        uint32_t bank = (uint32_t)c->bank_msb * 128u + c->bank_lsb;
+        mpc_io[trk_index(midi_track(ch))] = (uint16_t)(0x80u | d1 | (bank > 255u ? 255u : bank) << 8);
+    }
 }

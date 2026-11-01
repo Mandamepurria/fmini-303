@@ -221,7 +221,7 @@ static struct {
         uint8_t pick, trk, id;   /* a parameter picked (1): its track and P_* id */
         volatile uint8_t io[2];  /* midi_control.c ml_arm, ml_heard */
     } ml;
-    volatile uint8_t mpc[NTRK];  /* MIDI Program Change per track, 0x80 | program, 0 none (midi_control.c mpc_io: here
+    volatile uint16_t mpc[NTRK]; /* MIDI Program Change per track, 0x80 | program | bank << 8, 0 none (midi_control.c mpc_io: here
                                   * for the same reason as ml.io; midi_pc_poll) */
 } ui;
 
@@ -1470,7 +1470,7 @@ static void clean_engine(void) { clean_engine_of(TSEL); }
  * undo for a run of them). DRUM: its n-th KIT, the retired variants skipped (enum_orig); FM6: its presets (F1..F8),
  * then the voice bank's B1..B32 through SLOT as the knob loads them (fm6_poll; the rest of the sound stays), an empty
  * one ignored. A program past the last is ignored, not wrapped: a number is always the same sound */
-static volatile uint8_t *const mpc_io = ui.mpc;
+static volatile uint16_t *const mpc_io = ui.mpc;
 #if FELUCCA_FMINI_ONLY
 static void fa_factory_extras(track_t *t, uint32_t n);   /* (fmini_app.c) */
 #endif
@@ -1509,7 +1509,7 @@ static void midi_pc_poll(void)                       /* main loop (ui_input) */
         v = ui.mpc[k];
         ui.mpc[k] = 0;
         fm1_irq_on();
-        midi_pc_load(&trk[k], v & 127u);
+        midi_pc_load(&trk[k], (v & 127u) + 100u * (v >> 8));   /* bank x 100 + program (MIDI bank select, CC0 / CC32) */
         ui.force = 1;
     }
 }

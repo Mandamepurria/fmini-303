@@ -870,8 +870,8 @@ static int pc_test(void)
         if (!eng_ok(e) || e == ENGI_DRUM || !preset_shown(e))
             continue;
         set_engine_of(t, e);
-        /* (a Program Change is 0..127: FMINI's slots 128..199 are reached from PRESETS, not by PC) */
-        for (n = 0, last = -1; n < preset_shown(e) && n < 128u; n++) {
+        /* (a Program Change is 0..99 in a bank: bank 0 is 0..99, bank 1 100..199 by CC32, see bank_pc_test) */
+        for (n = 0, last = -1; n < preset_shown(e) && n < 100u; n++) {
             pc(0, n); frame();
             ok &= t->eng_req == e && (int32_t)t->preset > last && preset_orig(ENGINES[e], t->preset) == t->preset;
             last = t->preset;
@@ -974,9 +974,53 @@ static int pc_test(void)
     bad += check("  MIDI LEARN waiting: a PC is not taken for a CC, it loads", ok);
     return bad;
 }
+/* MIDI bank select (CC0 MSB, CC32 LSB): the next Program Change on the channel is bank x 100 + program, the bank kept
+ * until changed; programs 100..127 are not presets and are ignored; CC0 / 32 never reach the controller map */
+static int bank_pc_test(void)
+{
+    int bad = 0, ok;
+    uint32_t was;
+    track_t *t = &trk[0];
+    midi_test_reset();
+    set_engine_of(t, 0);                                 /* ANALOG: 0..5 */
+    pc(0, 5);
+    ok = ui.mpc[0] == (0x80u | 5u);
+    frame();
+    ok &= t->preset == 5;
+    bad += check("bank select: no CC0 / 32 yet, PC 5 is bank 0 program 5 (as before)", ok);
+
+    set_engine_of(t, 14);                                /* FMINI: 200 presets, so a bank 1 program is one */
+    bad += check("  (FMINI has 200 presets)", ENGINES[14]->npresets == 200);
+    queued(0xB0u, 0, 0, 1); queued(0xB0u, 32, 1, 1);
+    pc(0, 7);
+    ok = ui.mpc[0] == (0x80u | 7u | 1u << 8);
+    frame();
+    ok &= t->preset == 107;
+    bad += check("  CC32 = 1: PC 7 loads bank 1 program 7 = preset 107", ok);
+
+    pc(0, 100);
+    ok = ui.mpc[0] == 0u;
+    frame();
+    ok &= t->preset == 107;
+    bad += check("  PC 100 is not a preset: ignored, the track keeps its preset", ok);
+
+    queued(0xB0u, 0, 0, 1); queued(0xB0u, 32, 0, 1);
+    pc(0, 9);
+    frame();
+    ok = t->preset == 9;
+    bad += check("  CC0 = CC32 = 0 again: PC 9 is bank 0", ok);
+
+    queued(0xB1u, 0, 1, 1); queued(0xB1u, 32, 0, 1);
+    was = trk[1].preset;
+    pc(1, 3);
+    frame();
+    ok = trk[1].preset == was && t->preset == 9;
+    bad += check("  CC0 = 1 on channel 1: its PC 3 is bank 128, not a preset: ignored; channel 1's bank is its own", ok);
+    return bad;
+}
 int main(void)
 {
     int bad = controls_test() + sustain_test() + ownership_test() + clock_test(1) + clock_test(2) + clock_arp_and_boundaries() +
-              arp_ext_stop_test() + usb_burst_test() + route_test() + route_block_test() + route_track_test() + follow_test() + cc_map_test() + learn_test() + pc_test();
+              arp_ext_stop_test() + usb_burst_test() + route_test() + route_block_test() + route_track_test() + follow_test() + cc_map_test() + learn_test() + pc_test() + bank_pc_test();
     printf("%s\n", bad ? "MIDI CONTROL/CLOCK TEST FAILED" : "MIDI control/clock integration tests passed"); return bad != 0;
 }
