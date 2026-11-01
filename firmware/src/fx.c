@@ -398,6 +398,19 @@ static __attribute__((noinline)) void rev_room(const int32_t *rev_in, int32_t *o
 #endif
 
 #if FELUCCA_FMINI_ONLY
+/* FMini-1: the output of HALL, CLOUD, SPRING and PLATE goes through a low-pass (~5 kHz at 44.1 kHz): two cascaded one-poles, k = 16680
+ * (Q15), one state per stream (rlp_out: the wet bus, rlp_side: the stereo difference), reset by rev_clear. The hiss of a long tail is in
+ * its treble; ROOM has none and is not filtered. The steps are clamped, so the 32-bit products cannot overflow. */
+#define RLP_K 16680
+static int32_t rlp_out[2], rlp_side[2];
+static inline int32_t rlp_run(int32_t *st, int32_t x)
+{
+    int32_t d = clamp(x - st[0], -128000, 128000);
+    st[0] += (d * RLP_K) >> 15;
+    d = clamp(st[0] - st[1], -128000, 128000);
+    st[1] += (d * RLP_K) >> 15;
+    return st[1];
+}
 /* SPRING (see the top), stereo: a tank has two springs: the left output is the first (the loop in rev_comb, as before), the right a second, 19 %
  * longer one (its loop in rev_x, its own wobble): the two sound apart. spring_one: one spring's block into dst (assigned) */
 static __attribute__((noinline)) void spring_one(int16_t *ln, int32_t *ap, uint16_t *spw, int32_t *splp, int32_t *sphp, int32_t *sphe,
@@ -451,8 +464,8 @@ static __attribute__((noinline)) void rev_spring(const int32_t *rev_in, int32_t 
     spring_one(rev_x.s, rev_x.w + SP_LEN / 2u, &fx.sp2_w, &fx.sp2_lp, &fx.sp2_hp, &fx.sp2_he, &fx.sp2_size, &fx.sp2_ph, 2u * LFO_INC[27],
                304u, rev_in, b, n);
     for (i = 0; i < n; i++) {
-        out[i] += (a[i] + b[i]) >> 1;
-        rev_side[i] = (a[i] - b[i]) >> 1;
+        out[i] += rlp_run(rlp_out, (a[i] + b[i]) >> 1);
+        rev_side[i] = rlp_run(rlp_side, (a[i] - b[i]) >> 1);
     }
     hl.side = 1;
 }
@@ -707,10 +720,17 @@ static __attribute__((noinline)) void rev_hall(const int32_t *rev_in, int32_t *o
     }
     for (i = 0; i < HL_NC; i++) {                       /* back to 44.1 kHz, between samples */
         int32_t mm = (hl.l[i] + hl.r[i]) * HL_OUT, ss = (hl.l[i] - hl.r[i]) * HL_OUT;
+#if FELUCCA_FMINI_ONLY
+        out[2u * i] += rlp_run(rlp_out, (mp + mm) >> 1);
+        out[2u * i + 1u] += rlp_run(rlp_out, mm);
+        rev_side[2u * i] = rlp_run(rlp_side, (sp + ss) >> 1);
+        rev_side[2u * i + 1u] = rlp_run(rlp_side, ss);
+#else
         out[2u * i] += (mp + mm) >> 1;
         out[2u * i + 1u] += mm;
         rev_side[2u * i] = (sp + ss) >> 1;
         rev_side[2u * i + 1u] = ss;
+#endif
         mp = mm;
         sp = ss;
     }
@@ -831,10 +851,10 @@ static __attribute__((noinline)) void rev_plate(const int32_t *rev_in, int32_t *
     }
     for (i = 0; i < HL_NC; i++) {                       /* back to 44.1 kHz, between samples */
         int32_t mm = (hl.l[i] + hl.r[i]) * PL_OUT >> 3, ss = (hl.l[i] - hl.r[i]) * PL_OUT >> 3;
-        out[2u * i] += (mp + mm) >> 1;
-        out[2u * i + 1u] += mm;
-        rev_side[2u * i] = (sp + ss) >> 1;
-        rev_side[2u * i + 1u] = ss;
+        out[2u * i] += rlp_run(rlp_out, (mp + mm) >> 1);
+        out[2u * i + 1u] += rlp_run(rlp_out, mm);
+        rev_side[2u * i] = rlp_run(rlp_side, (sp + ss) >> 1);
+        rev_side[2u * i + 1u] = rlp_run(rlp_side, ss);
         mp = mm;
         sp = ss;
     }
@@ -847,6 +867,9 @@ static __attribute__((noinline)) void rev_plate(const int32_t *rev_in, int32_t *
 static void rev_clear(void)
 {
     uint32_t i;
+#if FELUCCA_FMINI_ONLY
+    rlp_out[0] = rlp_out[1] = rlp_side[0] = rlp_side[1] = 0;
+#endif
     for (i = 0; i < sizeof rev_comb / 2u; i++)
         rev_comb[i] = 0;
     for (i = 0; i < sizeof rev_u.ap / 2u; i++)          /* (int16: 997 of them, an odd count the int32 view misses one of) */

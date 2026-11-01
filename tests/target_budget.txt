@@ -37,8 +37,8 @@ dv_cym_run 67
 dv_out 35
 dv_metal_mix 16
 slicer_track 558
-fm1_alnk0_irq 8961
-fm1_timer5_irq 33762
+fm1_alnk0_irq 8749
+fm1_timer5_irq 33842
 click_render 30
 mod_begin 167
 mod_voice 30
@@ -52,11 +52,11 @@ perf_flanger 368
 perf_phaser 448
 perf_throw 50
 rev_room 506
-rev_spring 15
-rev_hall 2006
+rev_spring 55
+rev_hall 2095
 rev_side_mix 17
 spring_one 134
-rev_plate 566
+rev_plate 655
 dly_block 648
 cho_block 270
 track_dist 132
