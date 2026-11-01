@@ -129,9 +129,13 @@ static void dma(void)
     check("DMA advancing during a render is counted once", host_acks == 3u && felucca_dbg.late == 1u && !felucca_dbg.in_audio && !shed_req);
     fresh();
     expected = HALF_FRAMES * 1000000u / FS;            /* the half's deadline in us */
-    host_us = expected * 90u / 100u; host_nest = expected * 30u / 100u;   /* the render 60 %, TIMER5 nested 30 % */
+    host_us = expected * 96u / 100u; host_nest = expected * 30u / 100u;   /* the render 66 %, TIMER5 nested 30 %: over 93 % */
     fm1_alnk0_irq(); fm1_alnk0_irq();
     check("TIMER5 nested in the render counts toward the deadline", shed_req && felucca_dbg.last_us == host_us - host_nest);
+    fresh();
+    host_us = expected * 90u / 100u; host_nest = expected * 30u / 100u;  /* 90 %: under the 93 % line, no shedding */
+    fm1_alnk0_irq(); fm1_alnk0_irq(); fm1_alnk0_irq();
+    check("two halves at 90 % (under 93 %) do not shed", !shed_req && shed_count == 0u);
     fresh();
     host_us = 5000;
     fm1_alnk0_irq(); host_us = 100; fm1_alnk0_irq(); host_us = 5000; fm1_alnk0_irq();
