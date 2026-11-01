@@ -1034,5 +1034,25 @@ int main(int argc, char **argv)
             if ((double)n * CTL / FS < 11.0 || (double)n * CTL / FS > 13.5) { printf("decay to sustain %d: %.2f s\n", (int)t0->p[P_SUS], (double)n * CTL / FS); return 1; }
         }
     }
+    {   /* the idle light show (ANIM IDLE): it starts after 60 s with no input; a key (down and up) stops it and does not
+         * bring it back at once (the screen takes every input: scrn.idle), it comes back after 60 s more */
+        uint32_t i, bad0 = 0;
+        fa_init();
+        ui_idle |= 1u;
+        fm1_in.notes = fm1_in.buttons = 0;
+        scrn.idle = fm1_ms;
+        fframes(4000);
+        fm1_led_anim_stop();
+        for (i = 0; i < 61000u / 16u; i++) { fframe(); fa_leds(); }
+        if (!fm1_led_idle_on()) { printf("idle: not on after 61 s\n"); bad0++; }
+        fm1_in.notes = host_notes = 1u << 7; fframe(); fa_leds();
+        if (fm1_led_idle_on()) { printf("idle: still on with a key down\n"); bad0++; }
+        fm1_in.notes = 0; fframe(); fa_leds();
+        for (i = 0; i < 2000u / 16u; i++) { fframe(); fa_leds(); }
+        if (fm1_led_idle_on()) { printf("idle: back 2 s after a key up\n"); bad0++; }
+        for (i = 0; i < 61000u / 16u; i++) { fframe(); fa_leds(); }
+        if (!fm1_led_idle_on()) { printf("idle: not back after 60 s with no input\n"); bad0++; }
+        if (bad0) return 1;
+    }
     return 0;
 }

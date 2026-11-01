@@ -64,6 +64,13 @@ static int32_t panel_enc(uint32_t role)
         panel_moved = 1;
     return s;
 }
+/* 1 if a knob turned since the last call (the FMini-1 screen takes it each frame: its input is fa_input, not ui.c's) */
+static int panel_took_moved(void)
+{
+    int m = panel_moved;
+    panel_moved = 0;
+    return m;
+}
 
 /* Keep the retained settings layout fixed. palette: the index into UI_PALETTES (SET3 held an index
  * into the 20 palettes of earlier firmware) */

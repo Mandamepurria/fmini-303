@@ -1930,6 +1930,10 @@ static void fa_input(void)
     uint32_t pressed = fm1_input_edges(0), k;
     int32_t s;
     (void)fm1_input_note_edges();
+    /* any input keeps the screen awake (ui.c scrn.idle, which the idle light show waits 60 s for): a key, a button, a knob.
+     * ui_input.c's scr_input does this in Felucca's UI; the FMini-1 screen has its own input, so it does it here */
+    if (panel_took_moved() | pressed | fm1_in.notes | fm1_in.buttons)
+        scrn.idle = fm1_ms;
     if (fb_rs_state() == FB_RS_ASK || fb_rs == FB_RS_OK) {  /* the restore question (or its progress): nothing else */
         if (fb_rs == FB_RS_ASK) {
             if ((s = panel_enc(EN_ALGO)) != 0)
