@@ -11,7 +11,7 @@ body:
     attributes:
       label: Fmini-1 version
       description: The version appears during boot (or GLOBAL->Version).
-      placeholder: "v0.0.0 (FM-1 or SMK-37?)"
+      placeholder: "v0.0.0 - FM-1 or SMK-37?"
     validations:
       required: true
   - type: textarea
