@@ -9,7 +9,7 @@
 # release) the loudness contour; send = (drive, chorus, delay, reverb) levels; rv / dl / ch / dr the FX settings.
 import copy
 import os
-from gen_fmini_presets import A, o, osc_off, co, st_pit, hz, ms, cut, dly, semi, det, emp, Bank
+from gen_fmini_presets import A, o, osc_off, co, st_pit, hz, ms, cut, dly, semi, det, emp, Bank, R, W, RT
 
 
 def showcase(b):
@@ -911,6 +911,27 @@ def preset_moves(b):
     x["arp"][3] = 1                        # OCTAVES 1
     x["send"][3] = 0                       # reverb MIX 0
     x["g"][22], x["g"][23] = 162 & 127, 162 >> 7   # TEMPO 162 BPM
+    # 1.17.0: 004 (SINE SOLO's name and place): OSC 1 on at 8', triangle, VOLUME 10.0; OSC 2 and OSC 3 off; GLIDE 5.2;
+    # CUTOFF -1.9 on the dial; the loudness ATTACK 3.6 and DECAY 5.9; the reverb HALL: MIX 2.5, DECAY 5.4, TONE 7.0;
+    # the delay MIX 2.5; the chorus MIX 4.0 (the dials as the screen shows them, 0.0-10.0 -> the bytes)
+    x = P[4]
+    x["g"][0] = R["8"]                     # OSC 1 range 8'
+    x["g"][3] = W["TRI"]                   # OSC 1 wave triangle
+    x["g"][8] = knob(10.0)                 # OSC 1 volume
+    x["g"][9] = 0                          # OSC 2 volume 0 ...
+    x["g"][10] = 0                         # OSC 3 volume 0 ...
+    x["g"][12] = (x["g"][12] & ~(2 | 4)) | 1   # ... and their switches off (OSC 1 on; the noise, mod bits as they were)
+    x["g"][13] |= 1                        # GLIDE on
+    x["g"][17] = knob(5.2)                 # GLIDE time
+    x["e"][0] = round((-1.9 + 5.0) * 127 / 10.0)   # CUTOFF -1.9 on the dial
+    x["amp"][0] = knob(3.6)                # loudness ATTACK
+    x["amp"][1] = knob(5.9)                # loudness DECAY
+    x["send"][1] = knob(4.0)               # CHORUS MIX
+    x["send"][2] = knob(2.5)               # DELAY MIX
+    x["send"][3] = knob(2.5)               # REVERB MIX
+    x["fxg"][0] = RT["HALL"]               # REVERB TYPE HALL
+    x["fxg"][1] = knob(5.4)                # REVERB DECAY
+    x["fxg"][2] = knob(7.0)                # REVERB TONE
 
 def build(b):
     showcase(b)
