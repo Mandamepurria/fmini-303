@@ -313,7 +313,7 @@ int main(int argc, char **argv)
         fa_factory_extras(TSEL, 0);
         TSEL->p[P_AMODE] = 0;
     }
-    {   /* a new preset always goes HOME (CTRL), from any page, with the pop-ups closed: PRESETS, a Program Change, a slot change */
+    {   /* a new preset keeps the screen the player is on (any page, the ARP pop-up as it was): PRESETS, a Program Change, a slot change */
         uint32_t pgi;
         panel_init();
         fa_init();
@@ -324,13 +324,13 @@ int main(int argc, char **argv)
             fmg_force_page = (int8_t)pgi;
             fa_ar = pgi == 3u;                           /* (the ARP pop-up open on one of them) */
             fturn(EN_PRESET, 1);
-            if (fa_page != 0 || fa_ar) { printf("HOME: PRESETS on page %u -> page %d, arp pop-up %d\n", pgi, fa_page, fa_ar); return 1; }
+            if (fa_page != pgi || fa_ar != (pgi == 3u)) { printf("PRESET: PRESETS on page %u -> page %d, arp pop-up %d\n", pgi, fa_page, fa_ar); return 1; }
         }
         fa_page = 4;
         fmg_force_page = 4;
         ui.mpc[0] = (uint8_t)(0x80u | 33u);
         fframes(48);
-        if (TSEL->p[P_E7] != 33 || fa_page != 0) { printf("HOME: Program Change -> slot %d page %d\n", TSEL->p[P_E7], fa_page); return 1; }
+        if (TSEL->p[P_E7] != 33 || fa_page != 4) { printf("PRESET: Program Change -> slot %d page %d\n", TSEL->p[P_E7], fa_page); return 1; }
         fa_page = 2;
         fmg_force_page = 2;
         fframes(48);
@@ -372,7 +372,7 @@ int main(int argc, char **argv)
             if (TSEL->p[P_E7] != (int16_t)FMINI_OWN) { printf("edit %u: the slot is %d, not OWN\n", c, TSEL->p[P_E7]); return 1; }
             fturn(EN_PRESET, 1);
             fframes(48);
-            if (TSEL->p[P_E7] != 14 || fa_page != 0) { printf("edit %u: PRESETS from 13 -> %d (page %d), not 14\n", c, TSEL->p[P_E7], fa_page); return 1; }
+            if (TSEL->p[P_E7] != 14 || fa_page != CASE[c][0]) { printf("edit %u: PRESETS from 13 -> %d (page %d), not 14 on page %u\n", c, TSEL->p[P_E7], fa_page, CASE[c][0]); return 1; }
             fa_page = CASE[c][0];
             fmg_force_page = (int8_t)fa_page;
             fturn(EN_K1 + CASE[c][1], 3);

@@ -1267,7 +1267,7 @@ static void fa_cpu_draw(void)
     fa_ctext(120, 102, &AF_M, "Warning: CPU High", FA_OR);
 }
 /* every frame: a new preset (PRESETS, a Program Change, a saved one loaded) is shown in the pop-up; 1 = it changed now
- * (the caller goes HOME) */
+ * (the screen stays where it is) */
 static uint32_t fa_track_preset(void)
 {
     const track_t *t = TSEL;
@@ -1976,8 +1976,7 @@ static void fa_input(void)
     fa_buttons(pressed);
     if ((s = panel_enc(EN_PRESET)) != 0 && !fa_gl)
         fa_preset(s);
-    if (fa_track_preset())                                  /* a new preset (the knob, a Program Change, a saved one): HOME */
-        fa_home();
+    fa_track_preset();                                      /* a new preset (the knob, a Program Change, a saved one): the screen stays */
     fa_cc_poll();                                         /* the CCs the MIDI inputs brought */
     if (fa_gl || fa_sq || fa_ar || fa_sv || fa_page != 6u)
         fmg_fx = 0;                                       /* the FX pop-up lives on the FX page alone, under no other dialog */
