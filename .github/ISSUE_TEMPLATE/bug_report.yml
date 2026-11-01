@@ -1,24 +1,19 @@
 name: Bug report
-description: Something in Felucca doesn't work as it should (one bug per issue)
+description: Something in FMini-1 doesn't work as it should (one bug per issue)
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Issues are for reproducible bugs only. Feature ideas go to [Discussions › Ideas](https://github.com/hugelton/Felucca/discussions/categories/ideas), questions to [Q&A](https://github.com/hugelton/Felucca/discussions/categories/q-a).
+        Issues are for reproducible bugs only. Suggestions, ideas or Questions go to [Discussions](https://github.com/ruppert/fmini-1/discussions).
   - type: input
     id: version
     attributes:
-      label: Felucca version
-      description: Hold HOME > ABOUT on the FM-1
-      placeholder: "v1.0.2"
+      label: Fmini-1 version
+      description: The version appears during boot (or GLOBAL->Version).
+      placeholder: "v0.0.0 (FM-1 or SMK-37?)"
     validations:
       required: true
-  - type: input
-    id: system
-    attributes:
-      label: Computer, OS and browser (if the editor, installer or USB is involved)
-      placeholder: "macOS 15.6, Chrome 140"
   - type: textarea
     id: steps
     attributes:
@@ -38,6 +33,5 @@ body:
     id: actual
     attributes:
       label: What happened
-      description: A photo or short video helps.
     validations:
       required: true
