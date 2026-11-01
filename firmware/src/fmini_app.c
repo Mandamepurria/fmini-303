@@ -1415,6 +1415,9 @@ static uint32_t fa_signature(void)
 {
     const track_t *t = TSEL;
     uint32_t h = 2166136261u, i;
+#ifdef FMINI_DIAG                                    /* the diagnostic pop-up redraws when its numbers move */
+    h = (h ^ dg_bend_n ^ dg_on_n << 8 ^ (uint32_t)dg_bend_raw << 12 ^ (uint32_t)dg_run_q8 << 20) * 16777619u;
+#endif
     h = (h ^ fa_page ^ (uint32_t)fb_rs_state() << 8 ^ (uint32_t)fb_rs_yes << 12) * 16777619u;
     for (i = 0; i < FMG_NPG; i++)
         h = (h ^ fmg_cur[i]) * 16777619u;
@@ -1453,24 +1456,29 @@ static void fa_cat(char *d, const char *s)
         d[n++] = s[i++];
     d[n] = 0;
 }
+/* the diagnostic pop-up (drawn over the whole screen, like SAVE's): the bend's path at the last note-on */
 static void fa_diag(void)
 {
     char b[40], t[16];
-    b[0] = 0;
-    fa_cat(b, "WHEEL MSG ");
-    fmt_int(t, (int32_t)dg_bend_n); fa_cat(b, t);
-    fa_cat(b, " RAW "); fmt_int(t, dg_bend_raw); fa_cat(b, t);
-    fa_ctext(120, 4, &AF_X, b, FA_OR);
-    b[0] = 0;
-    fa_cat(b, "NOTE "); fmt_int(t, dg_on_note); fa_cat(b, t);
-    fa_cat(b, " #"); fmt_int(t, (int32_t)dg_on_n); fa_cat(b, t);
-    fa_cat(b, " ON "); fmt_int(t, dg_on_bend); fa_cat(b, t);
-    fa_ctext(120, 14, &AF_X, b, FA_OR);
-    b[0] = 0;
-    fa_cat(b, "TGT "); fmt_int(t, dg_on_tgt); fa_cat(b, t);
-    fa_cat(b, " Q8 "); fmt_int(t, dg_on_q8); fa_cat(b, t);
-    fa_cat(b, " RUN "); fmt_int(t, dg_run_q8); fa_cat(b, t);
-    fa_ctext(120, 24, &AF_X, b, FA_OR);
+    const uint16_t bgd = FA_RGB(0x1B, 0x19, 0x17);
+    cv_rect(6, 14, 228, 212, FA_OR);
+    cv_rect(8, 16, 224, 208, bgd);
+    fa_pc_text(120, 24, &AF_M, "BEND - DIAGNOSTICO", FA_CR, bgd);
+    b[0] = 0; fa_cat(b, "MENSAGENS DA RODA: "); fmt_int(t, (int32_t)dg_bend_n); fa_cat(b, t);
+    fa_pc_text(120, 64, &AF_S, b, FA_CR, bgd);
+    b[0] = 0; fa_cat(b, "ULTIMO VALOR (RAW): "); fmt_int(t, dg_bend_raw); fa_cat(b, t);
+    fa_pc_text(120, 84, &AF_S, b, FA_CR, bgd);
+    b[0] = 0; fa_cat(b, "NOTA: "); fmt_int(t, dg_on_note); fa_cat(b, t);
+    fa_cat(b, "   NOTAS: "); fmt_int(t, (int32_t)dg_on_n); fa_cat(b, t);
+    fa_pc_text(120, 104, &AF_S, b, FA_CR, bgd);
+    b[0] = 0; fa_cat(b, "BEND NO NOTE-ON: "); fmt_int(t, dg_on_bend); fa_cat(b, t);
+    fa_pc_text(120, 124, &AF_S, b, FA_CR, bgd);
+    b[0] = 0; fa_cat(b, "ALVO: "); fmt_int(t, dg_on_tgt); fa_cat(b, t);
+    fa_cat(b, "   Q8 NO ON: "); fmt_int(t, dg_on_q8); fa_cat(b, t);
+    fa_pc_text(120, 144, &AF_S, b, FA_CR, bgd);
+    b[0] = 0; fa_cat(b, "BEND DA VOZ AGORA: "); fmt_int(t, dg_run_q8); fa_cat(b, t);
+    fa_pc_text(120, 164, &AF_S, b, FA_CR, bgd);
+    fa_pc_text(120, 196, &AF_S, "(atualiza ao tocar e mexer a roda)", FA_MU, bgd);
 }
 #endif
 
@@ -1492,8 +1500,7 @@ static void fa_draw(void)
         cv_cy0 = 0;
         fa_scene();
 #ifdef FMINI_DIAG
-        if (band == 0u)
-            fa_diag();
+        fa_diag();
 #endif
         cv_oy = 0;
         cv_blit(0, band * 120u);
