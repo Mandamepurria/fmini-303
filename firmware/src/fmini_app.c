@@ -1233,7 +1233,7 @@ static void fa_preset_label(char *num, char *name)
     str_cpy(name, ENGINES[ENGI_FMINI]->presets[k].name, 16);
 }
 static int fa_pp_on(void) { return fa_pp_until && (int32_t)(fm1_ms - fa_pp_until) < 0; }
-/* the pop-up of a preset change: number and name large, 1.5 s */
+/* the pop-up of a preset change: number and name large, 1 s */
 static void fa_pp_draw(void)
 {
     char num[8], nm[16];
@@ -1278,7 +1278,7 @@ static uint32_t fa_track_preset(void)
             fa_base = (uint8_t)sl;
             fa_last_sl = (int16_t)sl;
             if (fa_primed) {
-                fa_pp_until = fm1_ms + 1500u;
+                fa_pp_until = fm1_ms + 1000u;
                 ch = 1;
             }
         }
@@ -1287,7 +1287,7 @@ static uint32_t fa_track_preset(void)
     if (u != fa_last_user) {
         fa_last_user = (uint8_t)u;
         if (u && fa_primed) {
-            fa_pp_until = fm1_ms + 1500u;
+            fa_pp_until = fm1_ms + 1000u;
             ch = 1;
         }
     }

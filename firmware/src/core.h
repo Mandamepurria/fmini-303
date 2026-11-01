@@ -19,8 +19,8 @@
 /* FMini-1 firmware version: the one the device shows and INFO reports (tag 0x49). Bump it on every firmware change. */
 #define FMINI_VER_MAJ 1u
 #define FMINI_VER_MIN 18u
-#define FMINI_VER_PATCH 1u
-#define FMINI_VERSION "v1.18.1"
+#define FMINI_VER_PATCH 2u
+#define FMINI_VERSION "v1.18.2"
 #define HALF_FRAMES 128          /* I2S half buffer: 2.9 ms at 44.1 kHz (a key waits 0..1 half, then plays 1 half later) */
 #ifndef FELUCCA_FM4
 #define FELUCCA_FM4 0            /* the DIGITAL engine (eng_digital.c, four-operator FM): kept in the tree, not built
