@@ -500,6 +500,37 @@ int main(int argc, char **argv)
             if (ratio != 1000 || val[0] != '+' || val[1] != '7' || val[2] != '.' || val[3] != '0' || val[4] != '0') { printf("DET top shown %d '%s'\n", (int)ratio, val); return 1; }
             fmini_patch[0][FG_DC2L] = 0; fmini_patch[0][FG_DC2H] = 0; fmini_patch[0][FG_F2] = 64;
         }
+        {   /* 1.20.2 (owner): TUNE moves 0.1 a detent on its 0.0 .. 10.0 dial, slow or fast (no acceleration: the turns
+             * here all come in the same ms), every tenth shown; 5.0 is byte 64 (A 440), the ends 0 and 127 */
+            uint32_t pg = 0, i, ft = 99;
+            const char *lb = 0, *un = 0;
+            char val[16], want[16];
+            int32_t ratio = -1, k;
+            uint32_t ic = 0;
+            for (i = 0; i < fmg_count(pg); i++)
+                if (fmg_field(pg, i)->kind == FK_BYTE && fmg_field(pg, i)->a == FG_TUNE) ft = i;
+            if (ft == 99) { printf("TUNE: not on CTRL\n"); return 1; }
+            song.sel = 0;
+            fmini_patch[0][FG_TUNE] = 64;
+            for (k = 0; k <= 100; k++) {                 /* 5.0 up to 10.0, then down to 0.0, then up to 5.0 */
+                int32_t d = k <= 50 ? 50 + k : 150 - k;
+                if (k) fmg_turn(pg, ft, k <= 50 ? 1 : -1, EN_K1);
+                fmg_card_at(pg, ft, -1, &lb, val, &un, &ratio, &ic);
+                fa_val(val, ratio, fmg_field(pg, ft));
+                fa_num(want, d * 10);
+                if (ratio != d * 10 || strcmp(val, want)) { printf("TUNE step %d: shown %d '%s', want '%s'\n", (int)k, (int)ratio, val, want); return 1; }
+            }
+            for (k = 0; k < 50; k++) fmg_turn(pg, ft, -1, EN_K1);
+            fmg_card_at(pg, ft, -1, &lb, val, &un, &ratio, &ic);
+            if (fmini_patch[0][FG_TUNE] != 0 || ratio != 0) { printf("TUNE bottom %d\n", fmini_patch[0][FG_TUNE]); return 1; }
+            fmg_turn(pg, ft, -1, EN_K1);
+            if (fmini_patch[0][FG_TUNE] != 0) { printf("TUNE below 0\n"); return 1; }
+            for (k = 0; k < 50; k++) fmg_turn(pg, ft, 1, EN_K1);
+            if (fmini_patch[0][FG_TUNE] != 64) { printf("TUNE 5.0 is byte %d, not 64\n", fmini_patch[0][FG_TUNE]); return 1; }
+            for (k = 0; k < 50; k++) fmg_turn(pg, ft, 1, EN_K1);
+            if (fmini_patch[0][FG_TUNE] != 127) { printf("TUNE 10.0 is byte %d, not 127\n", fmini_patch[0][FG_TUNE]); return 1; }
+            fmini_patch[0][FG_TUNE] = 64;
+        }
         fa_gl = 0;
         /* the filter: USB 1, MIDI 2, BT 3 */
         fm_midi_src = 0; fm_midi_ch = 0;

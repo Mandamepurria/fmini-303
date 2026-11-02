@@ -111,6 +111,9 @@ static void fmg_write(uint32_t b, uint32_t v)
     fmg_commit(p, b);
 }
 static int32_t fmg_acc(uint32_t role, int32_t s, int32_t range);
+/* TUNE's byte (0..127, 64 = A 440) <-> the dial's tenths (0..100, 50 = 5.0): each tenth its own byte, round trips exact */
+#define FMG_TUNE_D(v) (((uint32_t)(v) * 200u + 127u) / 254u)
+#define FMG_TUNE_B(d) (((uint32_t)(d) * 127u + 50u) / 100u)
 /* DET 2 / 3 (FG_F2, FG_F3): the knob moves the cents by 1 (-700 .. +700, the usual acceleration); the coarse byte follows
  * the nearest 11-cent step, so the editor sees the same value as before */
 static void fmg_det_turn(uint32_t f, uint32_t role, int32_t s)
@@ -251,6 +254,12 @@ static void fmg_turn(uint32_t pg, uint32_t i, int32_t s, uint32_t role)
             fmg_det_turn(f->a, role, s);
             break;
         }
+        if (f->a == FG_TUNE) {                                    /* TUNE (1.20.2): 0.1 a detent on the 0.0 .. 10.0 dial, no
+                                                                   * acceleration; the byte is the tenth's nearest (5.0 = 64, A 440) */
+            int32_t d = clamp((int32_t)FMG_TUNE_D(fmg_byte(f->a)) + s, 0, 100);
+            fmg_write(f->a, (uint32_t)FMG_TUNE_B(d));
+            break;
+        }
         fmg_write(f->a, (uint32_t)clamp((int32_t)fmg_byte(f->a) + fmg_acc(role, s, 127), 0, 127));
         if (f->kind == FK_GLIDE) {                       /* the knob is the GLIDE: any time above 0 switches it on, 0 off */
             uint32_t sw2 = fmg_byte(FG_SW2), want = fmg_byte(f->a) ? (sw2 | FT_GLIDE) : (sw2 & ~(uint32_t)FT_GLIDE);
@@ -385,6 +394,7 @@ static void fmg_card_at(uint32_t pg, uint32_t i, int32_t vo, const char **label,
         }
         *unit = "ST";
     } else if (f->a == FG_TUNE) {
+        *ratio = FMG_TUNE_D(v) * 10;                 /* (the FMini-1 screen's 0.0 .. 10.0: exact tenths, fmg_turn) */
         v = (v - 64) * 100 / 64;                     /* cents */
         val[0] = v > 0 ? '+' : 0;
         fmt_int(val + (v > 0), v);
