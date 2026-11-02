@@ -13,7 +13,8 @@
  * Controls: KNOB 1..4 the page's four knobs. SELECT moves a highlight over every control of every page (the knobs, the
  * switches, the waveforms; past the last control of a page it goes on to the next); ALGORITHM changes the highlighted
  * control (a switch: right = on, left = off). PRESETS: the factory patch F1..F8. Buttons: FX, ENV (F.ENV, again
- * A.ENV), LFO (CTRL), EDIT (OSC), SCL (MIX), GLO (FILT) open a page; OCT- / OCT+ the keys' octave. The keys, MIDI
+ * A.ENV), LFO (CTRL), EDIT (FILT), SCL (OSC, again MIX) open a page, HOME the first one (FILT), GLO the global pop-up;
+ * OCT- / OCT+ the keys' octave. The keys, MIDI
  * and the MASTER pot play and sound as in Felucca. Track 1 is the instrument; the other tracks are muted.
  * Included by felucca.c before main.c. */
 #if FELUCCA_FMINI_ONLY
@@ -1557,7 +1558,9 @@ static void fa_goto(uint32_t pg)
     fa_page = (uint8_t)(pg % FA_NPAGE);
     fa_cfg_save();                                        /* (the FX page's globals) */
 }
-/* HOME: the first screen, CTRL; the pop-ups close. A preset change does the same (fa_input) */
+/* HOME: the first screen, FILT (1.21.0, the owner's; it was CTRL, which LFO still opens); the pop-ups close. Power-on
+ * starts there too (fa_init). A preset change keeps the page (1.18.0, fa_input) */
+#define FA_HOME_PAGE 3u
 static void fa_home(void)
 {
     fa_sv = 0;
@@ -1566,7 +1569,7 @@ static void fa_home(void)
     fa_sq = 0;
     fa_sq_rec = 0;
     fa_gl_close();
-    fa_goto(0);
+    fa_goto(FA_HOME_PAGE);
 }
 
 /* SELECT: one control on; past a page's last control the next page's first (the other way: the last) */
@@ -1728,7 +1731,7 @@ static void fa_buttons(uint32_t pressed)
             fa_tp = 0;
         return;
     }
-    if ((pressed >> panel.btn[B_HOME]) & 1u) {            /* HOME: the first screen, CTRL; the pop-ups close */
+    if ((pressed >> panel.btn[B_HOME]) & 1u) {            /* HOME: the first screen, FILT; the pop-ups close */
         fa_home();
         return;
     }
@@ -2165,7 +2168,7 @@ static void fa_leds(void)
     {
         static const uint8_t PG_LED[FA_NPAGE] = {B_LFO, B_SCL, B_SCL, B_EDIT, B_ENV, B_ENV, B_FX};
         led_put(nl, panel.btn[PG_LED[fa_page]], 1);          /* the page's button */
-        led_put(nl, panel.btn[B_HOME], fa_page == 0u);        /* CTRL is HOME's: both light */
+        led_put(nl, panel.btn[B_HOME], fa_page == FA_HOME_PAGE);   /* FILT is HOME's: HOME and EDIT both light */
     }
     led_put(nl, panel.btn[B_ARP], TSEL->p[P_AMODE] != 0);
     led_put(nl, panel.btn[B_SEQ], fa_sq != 0u || fa_sc != 0u);
@@ -2222,7 +2225,7 @@ static void fa_init(void)
     fa_cpu_seen = cpu_crit;
     fa_cpu_last = fm1_ms - 1000u;
     fa_mono();
-    fa_page = 0;
+    fa_page = FA_HOME_PAGE;                                 /* power-on: HOME's page, FILT (1.21.0) */
     fa_track_preset();                                      /* the patch loaded at power-on: shown, no pop-up */
     fa_primed = 1;
     ui.force = 1;

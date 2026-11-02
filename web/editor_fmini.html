@@ -218,7 +218,7 @@ const rv = (a, i) => (a[i] | (a[i + 1] << 7)) - 8192;
 const cstr = (a, i) => { let s = ""; while (i < a.length && a[i]) s += String.fromCharCode(a[i++]); return [s, i + 1]; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /* the newest firmware this page knows: keep it equal to FMINI_VER_MAJ/MIN/PATCH in firmware/src/core.h (the device reports its own, tag 0x49) */
-const FW_LATEST = [1, 20, 2], FW_LATEST_TXT = "1.20.2";
+const FW_LATEST = [1, 21, 0], FW_LATEST_TXT = "1.21.0";
 
 const dev = { access: null, inp: null, out: null, waiter: null, chain: Promise.resolve(), open: false };
 

@@ -889,12 +889,17 @@ int main(int argc, char **argv)
         if (fa_page != 1) { printf("SCL -> OSC again (%d)\n", fa_page); return 1; }
         fpress(B_EDIT);                                  /* EDIT: FILT */
         if (fa_page != 3) { printf("EDIT -> FILT (%d)\n", fa_page); return 1; }
-        fpress(B_LFO);                                   /* LFO and HOME: CTRL, both lit */
+        fpress(B_LFO);                                   /* LFO: CTRL */
         fa_leds();
         if (fa_page != 0) { printf("LFO -> CTRL (%d)\n", fa_page); return 1; }
         fpress(B_SCL);
+        fpress(B_HOME);                                  /* HOME (1.21.0): FILT, as EDIT; both lit */
+        if (fa_page != 3) { printf("HOME -> FILT (%d)\n", fa_page); return 1; }
+        fa_leds();
+        fpress(B_LFO);
+        fa_gl = 1;                                       /* from CTRL with the GLO pop-up open: HOME closes it, goes FILT */
         fpress(B_HOME);
-        if (fa_page != 0) { printf("HOME -> CTRL (%d)\n", fa_page); return 1; }
+        if (fa_page != 3 || fa_gl) { printf("HOME closes GLO and goes FILT (%d, %d)\n", fa_page, fa_gl); return 1; }
     }
     {   /* 1.8.0: the battery icon bottom right, four bars, red on the last one, a bolt on USB power; no "n/7" any more */
         static const struct { int32_t raw, usb, bars, red, bolt; } B[6] = {
