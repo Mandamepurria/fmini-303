@@ -1018,9 +1018,74 @@ static int bank_pc_test(void)
     bad += check("  CC0 = 1 on channel 1: its PC 3 is bank 128, not a preset: ignored; channel 1's bank is its own", ok);
     return bad;
 }
+/* External clock tempo (owner's report, 1.19.1): USB clocks come in whole ms with about 1 ms of jitter. A tempo taken
+ * from one quarter beat (6 clocks, 125 ms at 120 BPM) jumped 119 / 120 / 121, at 230 BPM 227..234; a fit through up to
+ * four beats of quarter marks and 0.6 BPM of hysteresis keep the shown tempo still. A real change is followed within a beat; a single
+ * late clock moves nothing. */
+static uint32_t tj_seed = 12345u;
+static int32_t tj_jitter(void) { tj_seed = tj_seed * 1103515245u + 12345u; return (int32_t)((tj_seed >> 16) % 3u) - 1; }
+static uint32_t tj_t, tj_ms;                              /* µs of the ideal clock, the last ms sent */
+static void tj_pulses(uint32_t bpm, uint32_t n, int16_t *lo, int16_t *hi, uint32_t late_at)
+{
+    uint32_t k, ms;
+    for (k = 0; k < n; k++) {
+        tj_t += 2500000u / bpm;                           /* 60e6 / (24 bpm) µs a clock */
+        ms = 1000u + (tj_t + 500u) / 1000u + (uint32_t)tj_jitter() + (k == late_at ? 8u : 0u);
+        if ((int32_t)(ms - tj_ms) < 0)
+            ms = tj_ms;                                   /* (a queue never goes back in time) */
+        tj_ms = ms;
+        midi_clock_pulse(ms);
+        if (lo && song.g[G_BPM] < *lo) *lo = song.g[G_BPM];
+        if (hi && song.g[G_BPM] > *hi) *hi = song.g[G_BPM];
+    }
+}
+static int tempo_jitter_test(void)
+{
+    static const uint16_t BPM[] = {40, 50, 97, 120, 173, 230, 240};
+    int bad = 0, ok = 1;
+    uint32_t i;
+    int16_t lo, hi;
+    song.g[G_CLOCK] = 1;
+    song.playing = 0;
+    for (i = 0; i < NELEM(BPM); i++) {
+        memset(&midi_clock, 0, sizeof midi_clock);
+        midi_beat_samples = 0;
+        song.g[G_BPM] = 100;
+        tj_t = 0; tj_ms = 1000u;
+        tj_pulses(BPM[i], 96u, 0, 0, ~0u);                /* four beats to fill the window */
+        lo = 999; hi = 0;
+        tj_pulses(BPM[i], 24u * 32u, &lo, &hi, ~0u);      /* then 32 beats */
+        if (lo != BPM[i] || hi != BPM[i]) {
+            printf("ui:   %u BPM shown %d..%d\n", BPM[i], lo, hi);
+            ok = 0;
+        }
+        ok &= midi_beat_samples * 1000u / ((uint32_t)FS * 60u / BPM[i]) >= 995u &&
+              midi_beat_samples * 1000u / ((uint32_t)FS * 60u / BPM[i]) <= 1005u;
+    }
+    bad += check("external clock, 1 ms jitter: 40 50 97 120 173 230 240 BPM shown still (no 119/121, 227/234)", ok);
+
+    memset(&midi_clock, 0, sizeof midi_clock);
+    midi_beat_samples = 0;
+    tj_t = 0; tj_ms = 1000u;
+    tj_pulses(120u, 96u, 0, 0, ~0u);
+    lo = 999; hi = 0;
+    tj_pulses(120u, 96u, &lo, &hi, 41u);                   /* clock 41 of these 8 ms late (a quarter mark: 6 x 7 - 1) */
+    ok = lo == 120 && hi == 120;
+    tj_pulses(140u, 24u, 0, 0, ~0u);                       /* a real change: one beat later it is shown */
+    ok &= song.g[G_BPM] == 140;
+    lo = 999; hi = 0;
+    tj_pulses(140u, 24u * 8u, &lo, &hi, ~0u);
+    ok &= lo == 140 && hi == 140;
+    bad += check("  a late clock moves nothing; 120 -> 140 is shown within a beat and stays", ok);
+    song.g[G_CLOCK] = 0;
+    midi_beat_samples = 0;
+    memset(&midi_clock, 0, sizeof midi_clock);
+    return bad;
+}
 int main(void)
 {
     int bad = controls_test() + sustain_test() + ownership_test() + clock_test(1) + clock_test(2) + clock_arp_and_boundaries() +
-              arp_ext_stop_test() + usb_burst_test() + route_test() + route_block_test() + route_track_test() + follow_test() + cc_map_test() + learn_test() + pc_test() + bank_pc_test();
+              arp_ext_stop_test() + usb_burst_test() + route_test() + route_block_test() + route_track_test() + follow_test() + cc_map_test() + learn_test() + pc_test() + bank_pc_test() +
+              tempo_jitter_test();
     printf("%s\n", bad ? "MIDI CONTROL/CLOCK TEST FAILED" : "MIDI control/clock integration tests passed"); return bad != 0;
 }
