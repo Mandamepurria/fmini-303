@@ -751,9 +751,10 @@ static uint32_t fa_seq_t0;
 static uint32_t fa_arp_t0;
 
 /* ----------------------------------------------------------- SEQ --- */
-/* SEQ: a pop-up with the 16 slots of a sequence of up to 16 notes. REC (it lights) records the notes you play into the
- * next slots (a take of 16 ends by itself; REC again ends it), PLAY / STOP plays the loop at the TEMPO (ALGORITHM
- * changes it); the slot playing is lit, and so are the keys of the notes that sound. The steps are the track's own */
+/* SEQ: a pop-up with the 64 slots of a sequence of up to 64 notes. REC (it lights) records the notes you play into the
+ * next slots (a take of 64 ends by itself; REC again ends it); while it records, SELECT right leaves a rest and SELECT left
+ * goes back one slot and empties it (fa_seq_rest). PLAY / STOP plays the loop at the TEMPO (ALGORITHM changes it); the
+ * slot playing is lit, and so are the keys of the notes that sound. The steps are the track's own */
 static uint8_t fa_sq;                                     /* 1: the pop-up is open */
 static uint8_t fa_sq_rec;                                 /* REC armed */
 static uint8_t fa_sq_cur;                                 /* the slot the next note goes into */
@@ -884,6 +885,38 @@ static void fa_seq_note(track_t *t, uint32_t note)
         fa_sq_rec = 0;                                    /* 64 notes: the take is done */
 }
 
+/* SELECT while REC is armed (1.22.0, the owner's): right, a rest (the slot left empty, the take goes on; it counts in the
+ * length, so trailing rests are a pause before the loop comes round); left, back one slot, which goes empty (a note or a
+ * rest taken back). A rest also starts a take (the old one goes, as a first note does); back before anything is played
+ * does nothing (the old take stays). s detents, either way */
+static void fa_seq_rest(int32_t s)
+{
+    track_t *t = &trk[0];
+    if (!fa_sq_rec || !s)
+        return;
+    if (fa_sq_fresh) {
+        uint32_t i;
+        if (s < 0)
+            return;
+        for (i = 0; i < NSTEP; i++)
+            memset(&t->step[i], 0, sizeof t->step[i]);
+        fa_sq_fresh = 0;
+        fa_sq_cur = 0;
+    }
+    for (; s > 0 && fa_sq_rec; s--) {
+        memset(&t->step[fa_sq_cur], 0, sizeof t->step[fa_sq_cur]);
+        fa_sq_cur++;
+        t->p[P_SLEN] = fa_sq_cur;
+        if (fa_sq_cur >= NSTEP)
+            fa_sq_rec = 0;                                /* 64 slots: the take is done */
+    }
+    for (; s < 0 && fa_sq_cur; s++) {
+        fa_sq_cur--;
+        memset(&t->step[fa_sq_cur], 0, sizeof t->step[fa_sq_cur]);
+        t->p[P_SLEN] = fa_sq_cur ? fa_sq_cur : 1u;
+    }
+}
+
 /* 64 squares, 8 by 8: dark gray = empty, red = recorded, orange = the step that plays now; while REC is armed the
  * next square blinks cream */
 /* the SEQUENCER pop-up: the full height of the screen, the width of the other pop-ups. 64 squares, 8 by 8, rounded:
@@ -896,8 +929,11 @@ static void fa_seq_dialog(void)
     uint32_t i, len = (uint32_t)clamp(t->p[P_SLEN], 1, NSTEP), now = song.playing ? t->seq_idx % len : 99u;
     const uint16_t bg = FA_RGB(0x1B, 0x19, 0x17);
     char b[16];
+    uint32_t notes = 0;
     cv_rect(10, 0, 220, 240, FA_OR);
     cv_rect(12, 2, 216, 236, bg);
+    for (i = 0; i < len; i++)
+        notes |= t->step[i].n;
     for (i = 0; i < NSTEP; i++) {
         int32_t x = 31 + (int32_t)(i % 8u) * SQ_PITCH, y = 10 + (int32_t)(i / 8u) * SQ_PITCH;
         uint16_t c = FA_RGB(0x2A, 0x25, 0x20);            /* empty */
@@ -907,13 +943,15 @@ static void fa_seq_dialog(void)
             c = FA_RED;                                   /* recorded */
         else if (fa_sq_rec && i == fa_sq_cur && fa_sq_blink())
             c = FA_CR;                                    /* the next slot of the take */
+        else if (i < len && (notes || fa_sq_cur))
+            c = FA_RGB(0x5A, 0x22, 0x1C);                 /* a rest of the take (SELECT, 1.22.0): a dark red */
         cv_rrect(x, y, SQ_SIZE, SQ_SIZE, 4, c, bg);
     }
     str_cpy(b, fa_sq_rec ? "REC" : song.playing ? "PLAY" : "STOP", 5);
     fa_ltext(20, 200, &AF_M, b, fa_sq_rec ? FA_RED : song.playing ? FA_OR : FA_MU);
     fmt_int(b, song.g[G_BPM]);
     fa_rtext(220, 200, &AF_M, b, FA_CR);
-    fa_ctext(120, 214, &AF_X, "HOLD REC TO CLEAR", FA_MU);
+    fa_ctext(120, 214, &AF_X, fa_sq_rec ? "SELECT: REST / BACK" : "HOLD REC TO CLEAR", FA_MU);
     fa_ctext(120, 225, &AF_X, "REC  PLAY  ALGO=TEMPO  SEQ=CLOSE", FA_MU);
     if (fa_sq_title_on()) {                               /* SEQ just opened: the word, for 0.5 s */
         cv_rect(60, 96, 120, 26, FA_OR);
@@ -2087,7 +2125,8 @@ static void fa_input(void)
             fa_tp_turn(s);
             fa_tp_begin();
         }
-        (void)panel_enc(EN_SELECT);
+        if ((s = panel_enc(EN_SELECT)) != 0)              /* REC armed: right a rest, left back one slot (fa_seq_rest) */
+            fa_seq_rest(s);
         for (k = 0; k < 4u; k++)
             (void)panel_enc(EN_K1 + k);
         return;

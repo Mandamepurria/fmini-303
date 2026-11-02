@@ -673,7 +673,40 @@ int main(int argc, char **argv)
         input_on(&trk[0], 60, 100); input_on(&trk[0], 64, 100); input_on(&trk[0], 67, 100);
         trk_all_off(&trk[0]);
         if (fa_sq_cur != 3 || trk[0].step[0].note[0] != 60 || trk[0].step[2].note[0] != 67 || trk[0].p[P_SLEN] != 3) { printf("seq record %d\n", fa_sq_cur); return 1; }
+        {   /* 1.22.0 (owner): while REC records, SELECT right leaves a rest, SELECT left goes back one slot and empties it */
+            fturn(EN_SELECT, 1);                         /* a rest at slot 4 */
+            if (fa_sq_cur != 4 || trk[0].step[3].n || trk[0].p[P_SLEN] != 4 || !fa_sq_rec || !fa_sq) { printf("rest: cur %d len %d\n", fa_sq_cur, trk[0].p[P_SLEN]); return 1; }
+            input_on(&trk[0], 72, 100); trk_all_off(&trk[0]);
+            if (fa_sq_cur != 5 || trk[0].step[4].note[0] != 72 || trk[0].step[3].n || trk[0].p[P_SLEN] != 5) { printf("note after a rest\n"); return 1; }
+            ui.force = 1; fa_draw(); dump(dir, 920);      /* the grid: three notes, a rest (dark red), a note; SELECT: REST / BACK */
+            fturn(EN_SELECT, -1);                        /* back: the 72 goes */
+            if (fa_sq_cur != 4 || trk[0].step[4].n || trk[0].p[P_SLEN] != 4) { printf("back over a note: cur %d\n", fa_sq_cur); return 1; }
+            fturn(EN_SELECT, -2);                        /* back two: the rest and the 67 go */
+            if (fa_sq_cur != 2 || trk[0].step[2].n || trk[0].step[1].note[0] != 64 || trk[0].p[P_SLEN] != 2) { printf("back two: cur %d\n", fa_sq_cur); return 1; }
+            fturn(EN_SELECT, -5);                        /* past the start: slot 1, the take empty, the length 1 */
+            if (fa_sq_cur != 0 || trk[0].step[0].n || trk[0].p[P_SLEN] != 1 || !fa_sq_rec) { printf("back to the start: cur %d len %d\n", fa_sq_cur, trk[0].p[P_SLEN]); return 1; }
+            input_on(&trk[0], 60, 100); input_on(&trk[0], 64, 100); input_on(&trk[0], 67, 100);   /* the take as before */
+            trk_all_off(&trk[0]);
+            if (fa_sq_cur != 3 || trk[0].p[P_SLEN] != 3 || trk[0].step[2].note[0] != 67) { printf("re-record\n"); return 1; }
+        }
         fpress(B_REC);
+        {   /* a fresh take: SELECT left keeps the old take (nothing played yet); right starts the take with a rest */
+            fpress(B_REC);
+            fturn(EN_SELECT, -1);
+            if (!fa_sq_fresh || trk[0].step[0].note[0] != 60 || trk[0].p[P_SLEN] != 3) { printf("fresh back kept\n"); return 1; }
+            fturn(EN_SELECT, 1);
+            if (fa_sq_fresh || fa_sq_cur != 1 || trk[0].step[0].n || trk[0].step[1].n || trk[0].p[P_SLEN] != 1) { printf("fresh rest\n"); return 1; }
+            input_on(&trk[0], 64, 100); trk_all_off(&trk[0]);
+            if (trk[0].step[1].note[0] != 64 || trk[0].p[P_SLEN] != 2) { printf("note after a first rest\n"); return 1; }
+            fpress(B_REC);
+            fturn(EN_SELECT, 1);                         /* REC off: SELECT records nothing */
+            if (trk[0].p[P_SLEN] != 2) { printf("rest with REC off\n"); return 1; }
+            fpress(B_REC);                               /* the 3-note take back for the playback test below */
+            input_on(&trk[0], 60, 100); input_on(&trk[0], 64, 100); input_on(&trk[0], 67, 100);
+            trk_all_off(&trk[0]);
+            fpress(B_REC);
+            if (trk[0].p[P_SLEN] != 3 || trk[0].step[0].note[0] != 60) { printf("take restored\n"); return 1; }
+        }
         if (fa_sq_rec) { printf("rec off\n"); return 1; }
         song.g[G_BPM] = 240;                             /* the step count below is timed at 240 BPM, as the test always had it (the patches set their own tempo, 1.14.25) */
         fpress(B_PLAY);
