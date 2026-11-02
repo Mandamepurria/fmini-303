@@ -932,14 +932,26 @@ def preset_moves(b):
     x["fxg"][0] = RT["HALL"]               # REVERB TYPE HALL
     x["fxg"][1] = knob(5.4)                # REVERB DECAY
     x["fxg"][2] = knob(7.0)                # REVERB TONE
-    # 1.20.0: 099 (NEW 099, the placeholder) becomes SONAR, an effect (the 90-99 group): a sine-like ping (triangle at 4'
-    # into a ringing filter) that dies away and echoes across the stereo field (P-PONG delay, long feedback) into a big hall
+    # 1.20.1: 099 is CALM SEA, an effect (the 90-99 group; it was SONAR in 1.20.0): soft sea waves that come and go. White
+    # noise through the filter, no EMPHASIS; the LFO (SIN, about 9 s a wave) opens and closes the filter (MOD 100 to the
+    # filter, no tremolo), so a wave grows louder and brighter together (the foam's hiss) and between them stays a low rumble
+    # (about 14 dB between crest and trough); a slow ATTACK and RELEASE (3.5 s: longer leaves voices busy after 12 s), wide chorus, a long dark HALL. Any key: KBD 0.
     tmp = Bank()
-    tmp.add("SONAR", "fx", (o("4", "TRI", 110), o("8", "TRI", 40, 3), osc_off()),
-            cutoff=1700, emph=7.6, cntr=co(1.6), kbd=100, fenv=(0, 260, 0), env=(1, 1400, 0, 1400), poly=True,
-            lfo=(0.3, "SIN", 0, "OFF"), pit=1,
-            send=(0, 30, 95, 80), rv=("HALL", 110, 55), dl=("P-PONG", 560, 78), ch=("STEREO", 50, 0.3), pat=7)
+    tmp.add("CALM SEA", "fx", (osc_off(), osc_off(), osc_off()), noise=110, pink=False,
+            cutoff=380, emph=0.8, cntr=0, kbd=0, fenv=(0, 100, 127), env=(2500, 1000, 127, 3500),
+            vib=100, mflt=True, lfo=(0.11, "SIN", 0, "OFF"), trem=0,
+            send=(0, 70, 0, 85), rv=("HALL", 115, 35), ch=("STEREO", 90, 0.15), pat=7)
     P[99] = tmp.p[0]
+    # 1.20.1: 084 OCEAN TIDE (sea noise, now CALM SEA's job at 099) becomes NORTHERN SKY, in its group (80-89 atmospheres and
+    # drones): a wide, luminous drone in fifths. Two saws at 8' a fifth apart and a triangle at 4' a few cents off (a slow
+    # beat); the filter's contour swells it in over 4 s and a very slow LFO lets the brightness breathe; poly (chords),
+    # deep JUNO chorus, a long TAPE delay and a bright CLOUD.
+    tmp = Bank()
+    tmp.add("NORTHERN SKY", "atmo", (o("8", "SAW", 85), o("8", "SAW", 70, 702), o("4", "TRI", 55, 5)),
+            cutoff=900, emph=2.6, cntr=co(1.3), kbd=50, fenv=(4000, 4000, 90), env=(2500, 3000, 118, 3500), poly=True,
+            vib=40, mflt=True, lfo=(0.13, "TRI", 0, "OFF"),
+            send=(0, 90, 45, 105), rv=("CLOUD", 115, 90), dl=("TAPE", 750, 50), ch=("JUNO", 110, 0.25), pat=5)
+    P[84] = tmp.p[0]
 
 def build(b):
     showcase(b)
