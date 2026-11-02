@@ -932,6 +932,14 @@ def preset_moves(b):
     x["fxg"][0] = RT["HALL"]               # REVERB TYPE HALL
     x["fxg"][1] = knob(5.4)                # REVERB DECAY
     x["fxg"][2] = knob(7.0)                # REVERB TONE
+    # 1.20.0: 099 (NEW 099, the placeholder) becomes SONAR, an effect (the 90-99 group): a sine-like ping (triangle at 4'
+    # into a ringing filter) that dies away and echoes across the stereo field (P-PONG delay, long feedback) into a big hall
+    tmp = Bank()
+    tmp.add("SONAR", "fx", (o("4", "TRI", 110), o("8", "TRI", 40, 3), osc_off()),
+            cutoff=1700, emph=7.6, cntr=co(1.6), kbd=100, fenv=(0, 260, 0), env=(1, 1400, 0, 1400), poly=True,
+            lfo=(0.3, "SIN", 0, "OFF"), pit=1,
+            send=(0, 30, 95, 80), rv=("HALL", 110, 55), dl=("P-PONG", 560, 78), ch=("STEREO", 50, 0.3), pat=7)
+    P[99] = tmp.p[0]
 
 def build(b):
     showcase(b)

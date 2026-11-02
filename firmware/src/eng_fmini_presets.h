@@ -101,7 +101,7 @@ static const uint8_t FMINI_FACTORY[FMINI_NFACTORY][FG_SIZE] = {
     FGP(5, 4, 3, 2, 2, 2, 64, 64, 100, 70, 0, 0, 3, 0, 64, 0, 0, 0, 0, 0, 0, 0, 120, 0),   /* 96 LASER ZAP */
     FGP(1, 2, 3, 3, 2, 2, 64, 64, 100, 60, 0, 127, 11, 0, 64, 0, 0, 0, 0, 0, 0, 0, 120, 0),   /* 97 HELICOPTER */
     FGP(3, 3, 3, 3, 2, 2, 66, 64, 127, 90, 0, 0, 3, 0, 64, 0, 0, 0, 22, 0, 0, 0, 120, 0),   /* 98 ROBOT */
-    FGP(3, 3, 3, 2, 2, 2, 65, 64, 100, 90, 0, 0, 3, 0, 64, 0, 64, 0, 11, 0, 0, 0, 120, 0),   /* 99 NEW 099 */
+    FGP(4, 3, 3, 0, 0, 2, 64, 64, 110, 40, 0, 0, 3, 0, 64, 0, 100, 0, 0, 0, 0, 0, 120, 0),   /* 99 SONAR */
     FGP(3, 3, 2, 2, 2, 0, 65, 64, 90, 90, 60, 0, 7, 1, 64, 0, 64, 55, 11, 0, 0, 0, 120, 0),   /* 100 SUNRISE */
     FGP(3, 3, 4, 2, 2, 0, 65, 63, 75, 75, 50, 0, 7, 0, 64, 0, 64, 0, 11, 0, 11, 8, 120, 0),   /* 101 NIGHT SWIM */
     FGP(3, 3, 4, 0, 3, 0, 65, 64, 100, 60, 40, 0, 7, 0, 64, 0, 90, 0, 11, 0, 0, 0, 120, 0),   /* 102 GLASS ARP */
@@ -205,7 +205,7 @@ static const uint8_t FMINI_FACTORY[FMINI_NFACTORY][FG_SIZE] = {
 };
 
 /* {CUT, EMPH, CNTR, F.ATK, F.DEC, F.SUS, MOD, SLOT}, {ATK DEC SUS REL}, MONO (legato) or POLY, the sends DIST CHORUS DELAY REVERB */
-#define FMINI_CATS "LBUPLPLPPFLLLLLLLLLLLLLLLLLLLLBBBBBBBBBBPPPPPPPPPPLLLLLLLLLLUUUUUUUUUUKKKKKKKKKKPPPPPPPPPPFFFFFFFFFLLPUBKLLULKLLLLLLLLLLLLLLLLLLLLBBBBBBBBBBPPPPPPPPPPLLLLLLLLLLUUUUUUUUUUKKKKKKKKKKPPPPPPPPPPFFFFFFFFFF"   /* category.c: B bass, L lead, P pad, U pluck, K keys, D drum, F fx */
+#define FMINI_CATS "LBUPLPLPPFLLLLLLLLLLLLLLLLLLLLBBBBBBBBBBPPPPPPPPPPLLLLLLLLLLUUUUUUUUUUKKKKKKKKKKPPPPPPPPPPFFFFFFFFFFLPUBKLLULKLLLLLLLLLLLLLLLLLLLLBBBBBBBBBBPPPPPPPPPPLLLLLLLLLLUUUUUUUUUUKKKKKKKKKKPPPPPPPPPPFFFFFFFFFF"   /* category.c: B bass, L lead, P pad, U pluck, K keys, D drum, F fx */
 static const preset_t FMINI_PRESETS[] = {
     {"MINI LEAD", {61, 44, 51, 0, 79, 70, 30, 0}, {15, 81, 110, 70}, 0, 1, FX(30, 0, 55, 40), PAT(4)},
     {"MOOG BASS", {43, 51, 71, 0, 70, 30, 0, 1}, {9, 74, 60, 65}, 0, 1, FX(32, 0, 0, 46), PAT(2)},
@@ -306,7 +306,7 @@ static const preset_t FMINI_PRESETS[] = {
     {"LASER ZAP", {58, 61, 114, 0, 72, 0, 0, 96}, {0, 73, 0, 62}, 0, 1, FX(0, 0, 35, 40), PAT(7)},
     {"HELICOPTER", {69, 36, 0, 0, 62, 127, 0, 97}, {77, 84, 118, 86}, 0, 1, FX(0, 0, 0, 40), PAT(7)},
     {"ROBOT", {70, 86, 51, 0, 59, 0, 0, 98}, {0, 65, 0, 59}, 0, 0, FX(10, 0, 70, 50), PAT(13)},
-    {"NEW 099", {64, 38, 25, 31, 81, 60, 0, 99}, {31, 81, 100, 72}, 0, 1, FX(0, 0, 20, 30), PAT(0)},
+    {"SONAR", {64, 97, 41, 0, 75, 0, 0, 99}, {0, 98, 0, 98}, 0, 0, FX(0, 30, 95, 80), PAT(7)},
     {"SUNRISE", {64, 41, 56, 0, 77, 60, 25, 100}, {19, 79, 115, 73}, 0, 1, FX(25, 0, 50, 50), PAT(4)},
     {"NIGHT SWIM", {59, 25, 0, 72, 90, 90, 10, 101}, {86, 89, 115, 92}, 0, 0, FX(0, 70, 20, 60), PAT(5)},
     {"GLASS ARP", {65, 30, 51, 0, 68, 0, 0, 102}, {0, 75, 0, 70}, 0, 0, FX(0, 30, 60, 50), PAT(13)},
@@ -511,7 +511,7 @@ static const fmini_x_t FMINI_X[FMINI_NFACTORY] = {
     {{0, 1, 2, 1, 64, 0, 127}, {87, 0, 0, 0}, {2, 50, 85, 1, 45, 40, 0, 60, 47, 0, 64, 64}, 127, {0, 0, 63}, 0},   /* 96 */
     {{0, 1, 2, 1, 64, 0, 127}, {96, 1, 0, 8}, {0, 40, 60, 0, 65, 50, 0, 60, 47, 0, 64, 64}, 126, {0, 110, 0}, 0},   /* 97 */
     {{1, 4, 2, 4, 51, 0, 100}, {104, 4, 0, 8}, {0, 40, 85, 3, 45, 55, 0, 60, 47, 0, 64, 64}, 123, {27, 0, 0}, 0},   /* 98 */
-    {{0, 1, 2, 1, 64, 0, 127}, {87, 0, 0, 0}, {1, 60, 70, 0, 65, 30, 0, 60, 47, 0, 64, 64}, 104, {0, 0, 0}, 0},   /* 99 */
+    {{0, 1, 2, 1, 64, 0, 127}, {34, 0, 0, 0}, {1, 110, 55, 3, 80, 78, 0, 50, 34, 0, 64, 64}, 116, {1, 0, 0}, 0},   /* 99 */
     {{0, 1, 2, 1, 64, 0, 127}, {90, 0, 79, 0}, {1, 65, 80, 0, 61, 40, 0, 60, 47, 1, 60, 64}, 104, {0, 0, 0}, 0},   /* 100 */
     {{0, 1, 2, 1, 64, 0, 127}, {84, 0, 86, 0}, {4, 70, 80, 0, 65, 50, 2, 60, 40, 0, 64, 64}, 104, {0, 0, 0}, 0},   /* 101 */
     {{1, 3, 2, 2, 51, 0, 127}, {87, 0, 0, 0}, {2, 55, 90, 1, 53, 45, 0, 50, 34, 0, 64, 64}, 104, {0, 0, 0}, 0},   /* 102 */
