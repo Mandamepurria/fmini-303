@@ -474,6 +474,9 @@ run "regression: target cost of the render loops (pi32v2 disassembly)" python3 t
 
 run "installer CLI (fm1_install.py) against a simulated FM-1" python3 tests/install_test.py
 
+run "FMini-1 web editor: FACTORY RESET's 200 names are the firmware's (tools/gen_fmini_presets.py writes them)" \
+    python3 tools/gen_fmini_presets.py --check-editor
+
 if command -v node >/dev/null 2>&1; then
     run "web pages: editor protocol + samples, package builder, update protocol" node web/test_web.mjs
     run "web backup: capture, validation before writes, restore order" node web/test_backup.mjs

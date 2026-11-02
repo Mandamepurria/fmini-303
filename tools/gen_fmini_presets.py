@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # FMini-1: the 200 factory patches (000-199) -> firmware/src/eng_fmini_presets.h
 #   python3 tools/gen_fmini_presets.py            (writes the header; the header is checked in, the build does not run this)
+#   (also writes the 200 names into the web editor's FACTORY RESET list, web/editor_fmini.html FACTORY_NAMES)
+#   python3 tools/gen_fmini_presets.py --check-editor   (tests/run_tests.sh: the editor's names are the header's, exit 1 if not)
 #
 # The bank itself is tools/fmini_bank.py: one call of add() per patch, in the order of the PRESETS list, written in
 # physical units (ms, Hz, cents, semitones). This file turns them into the engine's bytes and checks the bank.
-import math, os, pathlib, sys
+import json, math, os, pathlib, re, sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -203,11 +205,39 @@ def check(bank):
         assert P[i]["oct"] == -1, "%03d %s: a brass patch comes in with OCT-1" % (i, P[i]["name"])
 
 
+EDITOR = HERE.parent / "web" / "editor_fmini.html"
+HEADER = HERE.parent / "firmware" / "src" / "eng_fmini_presets.h"
+NAMES_RE = re.compile(r"const FACTORY_NAMES = (\[.*?\]);")
+
+
+def editor_names(names):
+    """the editor's FACTORY RESET list (FACTORY_NAMES), in slot order"""
+    html = EDITOR.read_text()
+    m = NAMES_RE.search(html)
+    assert m, "web/editor_fmini.html: no FACTORY_NAMES"
+    EDITOR.write_text(html[:m.start(1)] + json.dumps(names, ensure_ascii=False) + html[m.end(1):])
+
+
+def check_editor():
+    """1.19.2: the list went stale by hand (15 of 200 names); now the generator writes it and the suite checks it"""
+    fw = re.findall(r'^\s*\{"([^"]*)",\s*\{', HEADER.read_text(), re.M)
+    ed = json.loads(NAMES_RE.search(EDITOR.read_text()).group(1))
+    bad = [(i, e, f) for i, (e, f) in enumerate(zip(ed, fw)) if e != f]
+    for i, e, f in bad:
+        print("%03d: the editor says %r, the firmware %r" % (i, e, f))
+    ok = len(fw) == len(ed) == 200 and not bad
+    print("editor FACTORY_NAMES: %d names, %s" % (len(ed), "the firmware's" if ok else "STALE: run python3 tools/gen_fmini_presets.py"))
+    return ok
+
+
 if __name__ == "__main__":
+    if "--check-editor" in sys.argv:
+        sys.exit(0 if check_editor() else 1)
     sys.path.insert(0, str(HERE))
     import fmini_bank  # noqa: E402
     bank = fmini_bank.build(Bank())
     check(bank)
     path = HERE.parent / "firmware" / "src" / "eng_fmini_presets.h"
     emit(bank, path)
+    editor_names([x["name"] for x in bank.p])
     print("wrote", path, len(bank.p), "patches;", sum(x["arp"][0] for x in bank.p), "with the arpeggiator on")
