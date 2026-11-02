@@ -933,6 +933,31 @@ int main(int argc, char **argv)
         fa_gl = 1;                                       /* from CTRL with the GLO pop-up open: HOME closes it, goes FILT */
         fpress(B_HOME);
         if (fa_page != 3 || fa_gl) { printf("HOME closes GLO and goes FILT (%d, %d)\n", fa_page, fa_gl); return 1; }
+        /* 1.23.0 (owner): GLO held 0.5 s opens ABOUT, from anywhere; a tap is the list as before */
+        fpress(B_GLO);
+        if (fa_gl != 1) { printf("GLO tap: the list (%d)\n", fa_gl); return 1; }
+        fpress(B_GLO);
+        if (fa_gl) { printf("GLO tap again: closed (%d)\n", fa_gl); return 1; }
+        fm1_in.buttons |= 1u << panel.btn[B_GLO]; host_pressed |= 1u << panel.btn[B_GLO];
+        fframes(400);                                    /* 0.4 s: still the list */
+        if (fa_gl != 1) { printf("GLO 0.4 s: the list (%d)\n", fa_gl); return 1; }
+        fframes(200);                                    /* past 0.5 s: ABOUT */
+        if (fa_gl != 3 || fa_gl_row != 5) { printf("GLO held: ABOUT (%d, row %d)\n", fa_gl, fa_gl_row); return 1; }
+        fm1_in.buttons &= ~(1u << panel.btn[B_GLO]); fframe();
+        if (fa_gl != 3) { printf("GLO released: ABOUT stays (%d)\n", fa_gl); return 1; }
+        ui.force = 1; fa_draw(); dump(dir, 921);
+        fpress(B_GLO);                                   /* GLO from ABOUT: back to the list, on ABOUT's line */
+        if (fa_gl != 1 || fa_gl_row != 5) { printf("ABOUT -> list (%d, row %d)\n", fa_gl, fa_gl_row); return 1; }
+        fpress(B_GLO);
+        fpress(B_SEQ);                                   /* from the SEQ pop-up (REC armed): held GLO closes it, ABOUT */
+        fpress(B_REC);
+        if (!fa_sq || !fa_sq_rec) { printf("seq for GLO hold\n"); return 1; }
+        fhold(B_GLO);
+        if (fa_gl != 3 || fa_sq || fa_sq_rec) { printf("GLO held over SEQ: ABOUT (%d, %d, %d)\n", fa_gl, fa_sq, fa_sq_rec); return 1; }
+        fturn(EN_SELECT, 1);                             /* an encoder: back to the list */
+        if (fa_gl != 1) { printf("ABOUT encoder back (%d)\n", fa_gl); return 1; }
+        fpress(B_GLO);
+        if (fa_gl) { printf("GLO closes (%d)\n", fa_gl); return 1; }
     }
     {   /* 1.8.0: the battery icon bottom right, four bars, red on the last one, a bolt on USB power; no "n/7" any more */
         static const struct { int32_t raw, usb, bars, red, bolt; } B[6] = {

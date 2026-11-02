@@ -1773,6 +1773,28 @@ static void fa_buttons(uint32_t pressed)
         fa_home();
         return;
     }
+    {   /* GLO held 0.5 s (1.23.0, the owner's): ABOUT, from anywhere (the press did its tap first; the list's
+         * cursor on ABOUT, so GLO or an encoder goes back to it) */
+        static uint8_t fa_glo_down;
+        static uint32_t fa_glo_t0;
+        if ((pressed >> panel.btn[B_GLO]) & 1u) {
+            fa_glo_down = 1;
+            fa_glo_t0 = fm1_ms;
+        } else if (fa_glo_down) {
+            if (!((fm1_in.buttons >> panel.btn[B_GLO]) & 1u))
+                fa_glo_down = 0;
+            else if ((uint32_t)(fm1_ms - fa_glo_t0) >= 500u) {
+                fa_glo_down = 0;
+                fa_sv = 0;
+                fa_ar = 0;
+                fa_sc = 0;
+                fa_sq = 0;
+                fa_sq_rec = 0;
+                fa_gl_row = 5u;
+                fa_gl = 3u;
+            }
+        }
+    }
     if ((pressed >> panel.btn[B_GLO]) & 1u) {             /* GLO: the global pop-up; inside a list, one level back */
         fa_sv = 0;
         fa_ar = 0;
