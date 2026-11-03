@@ -7,7 +7,7 @@
  * with its own contour (ATTACK DECAY SUSTAIN; the release takes the DECAY time) and keyboard tracking at 1 V/oct. The
  * loudness contour is the host's
  * ADSR (P_ATK .. P_REL). Modulation: the track's LFO (or noise, MOD MIX) to the pitch (MOD OSC) and the filter
- * (MOD FLT), its depth E7 MOD (the matrix's MODW source can drive it).
+ * (MOD FLT), its depth E7 MOD (the matrix's MODW source can drive it); the mod wheel (CC1) is a vibrato on the pitch, +-1 semitone.
  *
  * The sound is the track's patch (fmini_patch, FG_SIZE bytes, stored in projects and user presets in the slot of the
  * FM6 patch: the track plays one engine at a time, project.c, up_fm6.c); the eight EDIT values are the ones to play
@@ -410,7 +410,7 @@ static void fmini_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const
     const int16_t *p = t->p;
     const uint8_t *g = fmini_eff[(uint32_t)(t - trk) % NTRK].p;
     int32_t mix[CTL];
-    int32_t env15, mod, lfo, lc, p16, fine, k12, G16, gx16, c0, c1, c2, c3, inv14, kinv12, trim12;
+    int32_t env15, mod, lfo, vib, lc, p16, fine, k12, G16, gx16, c0, c1, c2, c3, inv14, kinv12, trim12;
     int32_t l1 = 0, l2 = 0, l3 = 0, ln = 0, dr1, dr2, dr3;
     uint32_t tr = (uint32_t)(t - trk) % NTRK, i, sw = g[FG_SW1];
     uint32_t inc1, inc2, inc3;
@@ -425,13 +425,12 @@ static void fmini_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const
     if (g[FG_SW2] & FT_SQR)
         lfo = lfo >= 0 ? 32767 : -32767;
     mod = mulq15(lfo, 32767 - (int32_t)g[FG_MMIX] * 258) + mulq15(fmini_mn[tr] << 1, (int32_t)g[FG_MMIX] * 258);
-    {   /* the depth: the patch's MOD, and the mod wheel (CC1, t->mw) takes it up to the full depth */
-        int32_t depth = p[P_E6] + ((127 - p[P_E6]) * (int32_t)t->mw + 63) / 127;
-        mod = mulq15(mod, depth * 258);                                 /* Q15 of the full depth */
-    }
+    mod = mulq15(mod, (int32_t)p[P_E6] * 258);                          /* the patch's MOD: Q15 of its depth */
+    /* the mod wheel (CC1, t->mw) is the vibrato: the LFO on the pitch, +-1 semitone at full wheel, whatever MOD OSC is */
+    vib = (mulq15(lfo, (int32_t)t->mw * 258) * 16) >> 15;
 
     /* oscillator pitches */
-    p16 = m->pitch16 + (sw & FS_MOSC ? (mod * 16) >> 14 : 0);    /* full depth: +-2 semitones */
+    p16 = m->pitch16 + vib + (sw & FS_MOSC ? (mod * 16) >> 14 : 0);    /* full depth: +-2 semitones */
     fine = m->fine + ((int32_t)g[FG_TUNE] - 64) * 237 / 64;
     {   /* the VCOs wander a few cents (temperature, the integrators): a slow random walk per oscillator, about +-2 cents */
         int32_t d1 = v->s[5], d2 = v->s[6];

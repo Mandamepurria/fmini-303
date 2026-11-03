@@ -342,5 +342,41 @@ int main(int argc, char **argv)
         }
         check("EMPHASIS 3 .. 7.5 on noise: the passband falls and the peak rises as the hardware's (loss within 2 dB, peak within 3.5 dB)", ok);
     }
+    /* 5. the mod wheel is a vibrato: the LFO on the pitch, MOD OSC off, no fixed LFO routing to the pitch */
+    {
+        static double yv[FS * 4];
+        uint32_t w;
+        double lo[2] = {1e9, 1e9}, hi[2] = {0, 0};
+        for (w = 0; w < 2u; w++) {
+            setup(100, 0, 127, FS_O1);                  /* MOD OSC off (FS_O1 only: the first oscillator) */
+            trk[0].p[P_LRATE] = 60;                 /* a few cycles a second */
+            trk[0].p[P_LWAVE] = 0;                  /* SIN */
+            trk[0].p[P_LFADE] = 0;                  /* no fade-in: full from the first block */
+            trk[0].p[P_LD_PIT] = 0;
+            trk[0].p[P_LD_AMP] = 0;
+            trk[0].mw = (uint8_t)(w ? 127 : 0);
+            {   /* as play(), with the LFO's end of block (fx.c mix_block does it after the parts) */
+                static int32_t b[CTL];
+                uint32_t k, j;
+                trk_note_on(&trk[0], 57, 100);
+                for (k = 0; k < FS * 4; k += CTL) {
+                    track_render(&trk[0], b, CTL);
+                    track_lfo_end(&trk[0]);
+                    for (j = 0; j < CTL && k + j < FS * 4; j++)
+                        yv[k + j] = b[j];
+                }
+                trk_note_off(&trk[0], 57);
+            }
+            for (i = FS; i + 2048 <= FS * 4; i += 2048) {
+                double fw, rw, tw;
+                analyse(yv, i, i + 2048, &fw, &rw, &tw);
+                if (fw < lo[w]) lo[w] = fw;
+                if (fw > hi[w]) hi[w] = fw;
+            }
+            printf("   mod wheel %u: pitch %.1f .. %.1f Hz (%.0f cents)\n", trk[0].mw, lo[w], hi[w], cents(hi[w], lo[w]));
+        }
+        check("the mod wheel at 0 leaves the pitch still; at 127 it sways about a semitone (MOD OSC off)",
+              cents(hi[0], lo[0]) < 10 && cents(hi[1], lo[1]) > 80 && cents(hi[1], lo[1]) < 220);
+    }
     return bad ? 1 : 0;
 }
