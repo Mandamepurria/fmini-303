@@ -247,6 +247,7 @@ static const uint8_t MIDI_CC_ENG[NENGINES] = {
     0x00, 0x30, 0x30, 0x34, 0x30,                     /* GRAIN (retired), PHYS BRIT, DRUM TONE, NOISE FREQ RES, FM6 MLVL */
     0x00,                                             /* SLICE (retired) */
     0x12,                                             /* FMINI CUT EMPH */
+    0x12,                                             /* ACID CUT RES (CC23..28: the rest, midi_cc_map) */
 };
 /* a CC sets parameter id of track t as a knob would: 0..127 over its range */
 static void midi_cc_set(track_t *t, uint32_t id, uint32_t value)
@@ -316,6 +317,10 @@ static void __attribute__((noinline)) midi_cc_map(track_t *t, uint32_t cc, uint3
 #endif
     if (midi_learned(cc, value))                /* (a learned CC is the user's: not the map's) */
         return;
+    if (eng_idx(t->eng_req) == ENGI_ACID && cc >= 23u && cc <= 28u) {   /* ACID: CC23 ENV, 24 DEC, 25 ACC, 26 SLIDE, 27 DRIVE, 28 WAVE */
+        midi_cc_set(t, P_E0 + 2u + cc - 23u, value);                     /* (CC74 CUT and CC71 RES: MIDI_CC_ENG) */
+        return;
+    }
     for (i = 0; i < NELEM(MIDI_CC_MAP); i++)
         if (MIDI_CC_MAP[i][0] == cc)
             id = MIDI_CC_MAP[i][1];

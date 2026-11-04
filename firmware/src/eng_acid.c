@@ -15,7 +15,7 @@
  *   - the amplitude is the voice's own VCA (engine_t.ownenv): the part's ADSR is not used, velocity only
  *     chooses accent / no accent.
  *   - the part's state lives in the part's engine memory (engine_t.mem), one voice a part.
- * The eight EDIT values are the 303's front panel: E0 CUT, E1 RES, E2 ENV MOD, E3 DECAY, E4 ACCENT, E5 SLIDE,
+ * The eight EDIT values are the 303's front panel: E0 CUT, E1 RES, E2 ENV MOD, E3 DECAY, E4 ACCENT, E5 SLIDE (0 = no slides),
  * E6 DRIVE (0..31 each), E7 WAVE (SAW, SQR, and the HI RES versions of both). The other knobs of Smileyface (attack, tuning, sub, sweep, poles,
  * muffler ...) stay at its defaults.
  * Compile-time: ACID_OS = 2 (default) runs the oscillator and the ladder twice a sample (as Smileyface does),
@@ -144,7 +144,7 @@ static void acid_note_on(track_t *t, voice_t *v)
     acid_knobs(t, &a->kn);
     /* a note that starts while the last one is still held is a slide (the host sets v->gate before this call, the
      * engine's own gate is as the last block left it) */
-    acid_gate_on(a, v->note, v->vel > ACID_ACC_VEL, a->gate && a->live);
+    acid_gate_on(a, v->note, v->vel > ACID_ACC_VEL, a->kn.sld && a->gate && a->live);   /* SLIDE 0: no slides */
 }
 
 static int acid_done(track_t *t, voice_t *v)            /* the voice's VCA has closed after the gate went off */
@@ -242,7 +242,7 @@ static void acid_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
         if (!v->gate) {
             a->gate = 0;
         } else if (a->gate && v->note != a->note) {     /* LEGATO: the host changed the pitch of the sounding note */
-            acid_gate_on(a, v->note, v->vel > ACID_ACC_VEL, 1);
+            acid_gate_on(a, v->note, v->vel > ACID_ACC_VEL, kn->sld != 0u);   /* SLIDE 0: it starts a new note */
         }
         a->tp = want;
         for (i = 0; i < n; i++) {
@@ -361,7 +361,7 @@ static const engine_t ENG_ACID = {
         {"ENV", F_INT, 0, 31, 18, 0, 0},
         {"DEC", F_INT, 0, 31, 12, 0, 0},
         {"ACC", F_INT, 0, 31, 16, 0, 0},
-        {"SLIDE", F_INT, 0, 31, 14, 0, 0},
+        {"SLIDE", F_INT, 0, 31, 14, 0, 0},   /* 0 = off: overlapping notes do not slide */
         {"DRIVE", F_INT, 0, 31, 4, 0, 0},
         {"WAVE", F_ENUM, 0, 3, 0, N_ACID_WAVE, 0},
     },
