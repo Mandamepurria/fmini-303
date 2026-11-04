@@ -7,7 +7,7 @@ name: Installer
 on:
   push:
     branches: [main]
-    paths: ["firmware/**", "web/**", "tools/**", "assets/**", "build.sh", "docs/emu/**", "docs/fmini-ad*", ".github/workflows/installer.yml"]
+    paths: ["firmware/**", "web/**", "tools/**", "assets/**", "build.sh", "docs/emu/**", "docs/emu2/**", "docs/fmini-ad*", ".github/workflows/installer.yml"]
   workflow_dispatch:
 
 permissions:
@@ -52,6 +52,7 @@ jobs:
           cp docs/fmini-ad.mp4 docs/fmini-ad-poster.jpg _site/
           mkdir -p _site/editor && cp web/editor_fmini.html _site/editor/index.html   # the patch editor (web/test_editor_fmini.py)
           cp -r docs/emu _site/emu                 # the browser emulator (web/emu/build_wasi.sh builds docs/emu)
+          cp -r docs/emu2 _site/emu2               # the emulator of the new-stuff branch (built into docs/emu2 with OUT=docs/emu2)
           echo "FMini-1 v$VERSION" >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-pages-artifact@v3
