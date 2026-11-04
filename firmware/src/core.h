@@ -34,9 +34,9 @@
                                             * second core (mod.c, voice.c SPREAD, eng_formant.c): one each with two cores,
                                             * one for all with one, as up to 1.6 */
 #define C1_PI(t) ((uint32_t)((t) - trk) % C1_NP)   /* a part's copy */
-#define NENGINES 15              /* 0..14; FMINI (14) comes last. SAMPLE (4), GRAIN (8) and SLICE (13) are retired (1.13): their numbers stay, silent */
+#define NENGINES 16              /* 0..15; ACID (15) comes last, FMINI (14) before it. SAMPLE (4), GRAIN (8) and SLICE (13) are retired (1.13): their numbers stay, silent */
 #define ENGI_DIGITAL 1u          /* reserved without FELUCCA_FM4: never selectable (eng_ok), its sounds load as FM6 */
-#define NENG_SHOWN (11 + FELUCCA_FM4)   /* the engines one can pick: PRESETS, the EDIT layer, the editor,
+#define NENG_SHOWN (12 + FELUCCA_FM4)   /* the engines one can pick: PRESETS, the EDIT layer, the editor,
                                                 * in the display order of engines.c ENGINE_ORDER */
 #define UP_SLOTS 32u             /* user presets (upreset.c) */
 
