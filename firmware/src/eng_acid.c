@@ -16,7 +16,7 @@
  *     chooses accent / no accent.
  *   - the part's state lives in the part's engine memory (engine_t.mem), one voice a part.
  * The eight EDIT values are the 303's front panel: E0 CUT, E1 RES, E2 ENV MOD, E3 DECAY, E4 ACCENT, E5 SLIDE,
- * E6 DRIVE (0..31 each), E7 WAVE (SAW / SQR). The other knobs of Smileyface (attack, tuning, sub, sweep, poles,
+ * E6 DRIVE (0..31 each), E7 WAVE (SAW, SQR, and the HI RES versions of both). The other knobs of Smileyface (attack, tuning, sub, sweep, poles,
  * muffler ...) stay at its defaults.
  * Compile-time: ACID_OS = 2 (default) runs the oscillator and the ladder twice a sample (as Smileyface does),
  * 1 once (about half the cost, a little more aliasing at high resonance and drive). */
@@ -99,6 +99,7 @@ static void acid_knobs(const track_t *t, acid_kn_t *kn)
     kn->sld = (uint8_t)clamp(p[P_E5], 0, 31);
     kn->drv = (uint8_t)clamp(p[P_E6], 0, 31);
     kn->wave = (uint8_t)(p[P_E7] & 1);          /* bit 0 square; accents on, no bass / drift / diode / two poles */
+    kn->hir = (uint8_t)((p[P_E7] >> 1) & 1);     /* HI RES (WAVE 2, 3): twice the feedback, it rings by itself */
     kn->adc = 4;
     kn->trk = 12;
     kn->atk = 2;
@@ -108,7 +109,6 @@ static void acid_knobs(const track_t *t, acid_kn_t *kn)
     kn->swp = 12;
     kn->pol = 31;
     kn->fm = 0;
-    kn->hir = 0;
     kn->swg = 0;
     kn->lvl = 0;
 }
@@ -334,12 +334,13 @@ static void acid_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
                 s = 32000;
             if (s < -32000)
                 s = -32000;
-            out[i] += voice_amp(s, m, i);               /* the part's fades and LFO -> AMP, and the voice level */
+            out[i] += (voice_amp(s, m, i) * 11) >> 3;   /* the part's fades and LFO -> AMP; x1.375 so the voice is as loud as in
+                                                           Smileyface (its 32000 against a voice's 24000) */
         }
     }
 }
 
-static const char *const N_ACID_WAVE[] = {"SAW", "SQR"};
+static const char *const N_ACID_WAVE[] = {"SAW", "SQR", "SAW HI", "SQR HI"};   /* HI: Smileyface's HI RES */
 
 static const preset_t ACID_PRESETS[] = {
     /* E: CUT RES ENV DEC ACC SLD DRV WAVE; env/fenv are the host's ADSR (unused: the voice has its own VCA) */
@@ -362,7 +363,7 @@ static const engine_t ENG_ACID = {
         {"ACC", F_INT, 0, 31, 16, 0, 0},
         {"SLIDE", F_INT, 0, 31, 14, 0, 0},
         {"DRIVE", F_INT, 0, 31, 4, 0, 0},
-        {"WAVE", F_ENUM, 0, 1, 0, N_ACID_WAVE, 0},
+        {"WAVE", F_ENUM, 0, 3, 0, N_ACID_WAVE, 0},
     },
     .presets = ACID_PRESETS,
     .npresets = NELEM(ACID_PRESETS),
