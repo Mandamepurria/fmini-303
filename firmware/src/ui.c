@@ -1509,6 +1509,15 @@ static void midi_pc_poll(void)                       /* main loop (ui_input) */
         v = ui.mpc[k];
         ui.mpc[k] = 0;
         fm1_irq_on();
+        if ((v >> 8) == 255u && (v & 127u) < 4u) {         /* PROJECT: bank 255 (CC0 = 2 or more, or CC0 = 1 and CC32 = 127), program 0..3 */
+            project_load(v & 127u);                        /* loads project slot 1..4 (the same as SAVE > PROJECT > LOAD) */
+            fm1_irq_off();
+            for (k = 0; k < NTRK; k++)
+                ui.mpc[k] = 0;                             /* (the other tracks' Program Changes of this block were meant for the old project) */
+            fm1_irq_on();
+            ui.force = 1;
+            return;
+        }
         midi_pc_load(&trk[k], (v & 127u) + 100u * (v >> 8));   /* bank x 100 + program (MIDI bank select, CC0 / CC32) */
         ui.force = 1;
     }
