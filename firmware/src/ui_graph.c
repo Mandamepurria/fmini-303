@@ -1431,13 +1431,13 @@ static void graph_events(void)
 /* project slots: the name (none: USED) / EMPTY, the selected one filled */
 static void graph_slots(void)
 {
-    uint32_t i;
+    uint32_t i, ks = project_sel_k();                 /* (the window moved to the selected project's bank) */
     for (i = 0; i < 4u; i++) {
         int32_t y = 12 + (int32_t)i * 26;
         char b[4];
-        int sel = (int32_t)i + 1 == song.g[G_SLOT], used = graph_project_used(i);
+        int sel = i == ks, used = graph_project_used(i);
         const char *n = graph_project_name(i);
-        b[0] = (char)('A' + i);
+        b[0] = (char)('A' + proj_gl(i));              /* A..R: the 18 projects, four of them at a time */
         b[1] = 0;
         list_row(y, sel, b, T_MID, !used ? "--" : n[0] ? n : "USED", used ? T_TEXT : T_DIM, 232);
     }

@@ -7,6 +7,9 @@
 static int project_save(uint32_t slot);
 static void panel_setup(void);
 static void project_load(uint32_t slot);
+static uint32_t project_sel_k(void);
+static uint32_t proj_gl(uint32_t k);
+static void project_goto(uint32_t g);
 static int project_used(uint32_t slot);
 static uint32_t chain_prepare(void);
 static int up_used(uint32_t k);              /* user presets: upreset.c */
@@ -247,6 +250,14 @@ enum { CF_NONE, CF_CLEAR_SEQ, CF_CLEAR_TRK, CF_OVR_PROJ, CF_OVR_USER, CF_LOAD_PA
  * the loop): 120 ms after the SLPIN, SLPOUT (lcd_power(1)); 120 ms after that one frame redraws everything
  * (ui.force), then DISPON (lcd_power(2)) */
 #define ui_scr (favorites.factory[15][27])
+/* PROJECT CH (MENU > SYSTEM, ACID build): the MIDI channel whose Program Change 0..3 loads project 1..4, whatever the
+ * tracks listen to. A byte no engine uses (favorites.factory[15][13], kept with the settings): 0 the default, channel 9,
+ * 1..16 channel 1..16, 17 OFF. midi_control.c reads it through prjch_io */
+#define ui_prjch (favorites.factory[15][13])
+#define PRJ_DEF 8u                                     /* channel 9 (0-based 8) */
+static uint32_t prj_idx(void) { return ui_prjch == 0u ? PRJ_DEF : ui_prjch <= 17u ? ui_prjch - 1u : PRJ_DEF; }   /* 0..15 channel, 16 OFF */
+static void prj_put(uint32_t v) { ui_prjch = (uint8_t)(v == PRJ_DEF ? 0u : v < 17u ? v + 1u : 0u); }
+static volatile uint8_t *const prjch_io = &favorites.factory[15][13];
 /* MENU > ANIM IDLE (1.2, Discussion #135; menu_items.c, ui_input.c idle_leds): bit 0, the LEDs' idle animation, in a
  * byte no engine uses, kept with the settings; 0 in every older setting = off. The other bits: 0 (room for a delay) */
 #define ui_idle (favorites.factory[15][10])
@@ -1509,8 +1520,8 @@ static void midi_pc_poll(void)                       /* main loop (ui_input) */
         v = ui.mpc[k];
         ui.mpc[k] = 0;
         fm1_irq_on();
-        if ((v >> 8) == 255u && (v & 127u) < 4u) {         /* PROJECT: bank 255 (CC0 = 2 or more, or CC0 = 1 and CC32 = 127), program 0..3 */
-            project_load(v & 127u);                        /* loads project slot 1..4 (the same as SAVE > PROJECT > LOAD) */
+        if ((v >> 8) == 255u && (v & 127u) < 18u) {        /* PROJECT: bank 255 (CC0 = 2 or more, or CC0 = 1 and CC32 = 127), program 0..17 */
+            project_goto(v & 127u);                        /* loads project 1..18 (the same as SAVE > PROJECT > LOAD) */
             fm1_irq_off();
             for (k = 0; k < NTRK; k++)
                 ui.mpc[k] = 0;                             /* (the other tracks' Program Changes of this block were meant for the old project) */
@@ -1862,10 +1873,10 @@ static int act_ready(void)
     if (cur_page()->graph == GR_USER)
         return c == 3u ? !song.playing : up_used(ui.uslot) && (c == 1u || !song.playing);
     if (cur_page()->graph == GR_SLOTS && c == 1u)       /* PROJECT ERASE: a used slot, stopped */
-        return !song.playing && project_used((uint32_t)song.g[G_SLOT] - 1u);
+        return !song.playing && project_used(project_sel_k());
     id = cur_page()->id[c & 3u];
     if (id == G_LOAD)
-        return project_used((uint32_t)song.g[G_SLOT] - 1u);
+        return project_used(project_sel_k());
     if (id == G_SAVE)
         return !song.playing;
     if (id == G_CLRSEQ)

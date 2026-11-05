@@ -6,6 +6,16 @@
  * patches into the user presets restored before it (ids 6, 7), as the first boot after the update does (up_fm6.c).
  * Id 9 is the user presets' FM6 patches (up_fm6.c), appended in 1.0.3.
  */
+/* ACID build: ids 10..23 are the projects 5..18 (storage.c OBJ_PROJX0 ..; the projects 1..4 are 2..5). They are not in the
+ * archive's list (ED_BK_IDS: an archive stays what it was); LIST with one argument, 1, lists them (the projects editor,
+ * web/projects.html). A GET reads one from flash into the staging RAM (a project save or load, or another LIST, invalidates
+ * it as it does the runtime copy: proj_wire_gen), a PUT writes one the way ids 2..5 are written (the window of the bank
+ * it is in follows). Length 0 = an empty project (a PUT of it erases). */
+#define ED_BK_XLO 10u
+#define ED_BK_XHI 23u
+static uint8_t ed_bk_xid = 255u;
+static uint32_t ed_bk_xgen, ed_bk_xlen;
+static int proj_store_len(uint32_t len);
 static const uint8_t ED_BK_IDS[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};   /* (1.13: the sample slots, 32..34, are gone) */
 #define ED_BK_N ((uint32_t)sizeof ED_BK_IDS)
 #define ED_BK_MAX ((uint32_t)sizeof proj_wire_u.raw)
@@ -32,6 +42,19 @@ static void ed_bk_pack(const uint8_t *p, uint32_t n)
 static const uint8_t *ed_bk_object(uint32_t id, uint32_t *len)
 {
     *len = 0;
+    if (id >= 2u && id <= 5u) proj_bank_set(0);         /* (the archive's projects are 1..4: the window on bank 0) */
+    if (id >= ED_BK_XLO && id <= ED_BK_XHI) {
+#if FELUCCA_FLASH
+        if (ed_bk_xid != id || ed_bk_xgen != proj_wire_gen) {
+            int n = flash_ok ? st_load(OBJ_PROJX0 + id - ED_BK_XLO, ED_BK_RAW, ED_BK_MAX) : -1;
+            ed_bk_xlen = n > 0 && proj_store_len((uint32_t)n) ? (uint32_t)n : 0u;
+            ed_bk_xid = (uint8_t)id;
+            ed_bk_xgen = ++proj_wire_gen;               /* (the staging RAM is this one's now: the runtime copy of LIST is stale) */
+        }
+        *len = ed_bk_xlen;
+#endif
+        return ED_BK_RAW;
+    }
     if (id == 0u) { *len = sizeof(project_store_t); return ED_BK_RAW; }
     if (id == 1u) { *len = sizeof ed_bk_settings; return (const uint8_t *)&ed_bk_settings; }
     if (id >= 2u && id <= 5u) {
@@ -84,7 +107,7 @@ static uint32_t ed_bk_commit(void)
     uint8_t *raw = ED_BK_RAW;
     uint32_t obj;
     if (ed_bk_pos != ed_bk_len || st_crc32(raw, ed_bk_len) != ed_bk_crc) return 2;
-    if (ed_bk_id == 0u || (ed_bk_id >= 2u && ed_bk_id <= 5u)) {
+    if (ed_bk_id == 0u || (ed_bk_id >= 2u && ed_bk_id <= 5u) || (ed_bk_id >= ED_BK_XLO && ed_bk_id <= ED_BK_XHI)) {
         if (ed_bk_len && !proj_import(&proj_scratch, raw, (int)ed_bk_len)) return 2;
         if (ed_bk_len) {                            /* an older format becomes FUN10 inside its ranges */
             proj_bound(&proj_scratch);
@@ -95,7 +118,12 @@ static uint32_t ed_bk_commit(void)
             if (!ed_bk_len) return 2;
             return project_restore_runtime(&proj_scratch) ? 2u : 0u;
         }
-        obj = OBJ_PROJECT0 + ed_bk_id - 2u;
+        if (ed_bk_id >= ED_BK_XLO) {
+            obj = OBJ_PROJX0 + ed_bk_id - ED_BK_XLO;
+        } else {
+            proj_bank_set(0);
+            obj = OBJ_PROJECT0 + ed_bk_id - 2u;
+        }
     } else if (ed_bk_id == 1u) {
         const persist_t *p = (const persist_t *)raw;
         if (ed_bk_len != sizeof *p || p->magic != PERSIST_MAGIC || !palette_stored_ok(p->palette) ||
@@ -130,6 +158,15 @@ static uint32_t ed_bk_commit(void)
         if (proj_cur == ed_bk_id - 2u)
             proj_cur = PROJ_NO_SLOT;                     /* (another project there now: the music keeps its name) */
         if (ed_bk_len) memcpy(&proj_slot[ed_bk_id - 2u], raw, ed_bk_len);
+    } else if (ed_bk_id >= ED_BK_XLO && ed_bk_id <= ED_BK_XHI) {
+        uint32_t g = ed_bk_id - ED_BK_XLO + 4u, k = g & 3u;       /* project number 4..17 */
+        ed_bk_xid = 255u;
+        if (proj_bank_get() == (g >> 2)) {                        /* its bank is the window's: the RAM slot follows */
+            memset(&proj_slot[k], 0, sizeof proj_slot[0]);
+            if (proj_cur == k)
+                proj_cur = PROJ_NO_SLOT;
+            if (ed_bk_len) memcpy(&proj_slot[k], raw, ed_bk_len);
+        }
     } else if (ed_bk_id == 1u) {
         memcpy(&ed_bk_settings, raw, sizeof ed_bk_settings);
         settings_import(&ed_bk_settings, sizeof ed_bk_settings);
@@ -154,13 +191,14 @@ static int proj_store_len(uint32_t len)
 static uint32_t ed_bk_write(const uint8_t *a, uint32_t n)
 {
     /* the arguments first: a malformed request never stops the transport */
-    if (n < 2u || a[0] > 3u || a[1] > 9u) return 1;
+    if (n < 2u || a[0] > 3u || (a[1] > 9u && (a[1] < ED_BK_XLO || a[1] > ED_BK_XHI))) return 1;
     if (a[0] == 0u) {
         if (n != 12u || a[6] > 15u || a[11] > 15u) return 1;
         uint32_t len = ed_bk_r32(a + 2);
         if (len > ED_BK_MAX || (a[1] == 0u && !proj_store_len(len)) ||
             (a[1] == 1u && len != sizeof(persist_t)) ||
             (a[1] >= 2u && a[1] <= 5u && len && !proj_store_len(len)) ||
+            (a[1] >= ED_BK_XLO && len && !proj_store_len(len)) ||
             ((a[1] == 6u || a[1] == 7u) && len && len != sizeof(up_bank_t)) ||
             (a[1] == 8u && len && len != sizeof(fm6_bank_t)) || (a[1] == 9u && len && len != sizeof(upf_t))) return 1;
         if (ed_flash_stop()) return 3;
@@ -189,6 +227,20 @@ static uint32_t ed_bk_write(const uint8_t *a, uint32_t n)
 }
 static int ed_backup_handle(uint32_t cmd, const uint8_t *a, uint32_t n)
 {
+    if (cmd == ED_BACKUP_LIST && n == 1u && a[0] == 1u) {      /* the projects 5..18 (the projects editor) */
+        uint32_t rc = transport_busy() ? 3u : 0u;
+        ed_b(1); ed_b(rc); ed_b(rc ? 0u : ED_BK_XHI - ED_BK_XLO + 1u);
+        if (!rc) {
+            ed_bk_valid = 1; ed_bk_put = 0; ed_bk_usb = usb.resets;
+            for (uint32_t id = ED_BK_XLO; id <= ED_BK_XHI; id++) {
+                uint32_t len;
+                const uint8_t *p = ed_bk_object(id, &len);
+                ed_b(id); ed_bk_u32(len); ed_bk_u32(st_crc32(p, len));
+                fm1_wdt_feed();
+            }
+        }
+        return 1;
+    }
     if (cmd == ED_BACKUP_LIST) {
         uint32_t rc = n ? 1u : ed_bk_capture();
         ed_b(1); ed_b(rc); ed_b(rc ? 0u : ED_BK_N);

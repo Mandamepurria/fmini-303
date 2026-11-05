@@ -32,7 +32,10 @@ enum { OBJ_SETTINGS, OBJ_PROJECT0, OBJ_UPRESET0 = OBJ_PROJECT0 + 4, OBJ_FM6BANK 
        OBJ_AUTOSAVE,
        OBJ_PRESET0,                            /* FMini-1 1.14.0: the 200 preset slots, 13 objects of 16 records (appended:
                                                 * the type ids are stored, so nothing above moves) */
-       OBJ_PRESET_LAST = OBJ_PRESET0 + 12u, OBJ_COUNT };
+       OBJ_PRESET_LAST = OBJ_PRESET0 + 12u,
+       OBJ_PROJX0 = 33,                        /* the projects 5..18 (project.c proj_bank): 14 objects of 0xC0000..0xDBFFF. Not 32:
+                                                * that is OBJ_FM6VB's type (below) */
+       OBJ_PROJX_LAST = OBJ_PROJX0 + 13u, OBJ_COUNT };
 #define OBJ_FM6VB 32u                          /* the voice bank's commit records (fm6_vbank.c; >= OBJ_COUNT: st_load
                                                 * never takes one, no object here takes its sectors) */
 
@@ -74,6 +77,8 @@ static uint32_t st_sector(uint32_t obj, uint32_t copy)  /* flash offset of copy 
         return 0xE5000u + copy * ST_SECTOR;
     if (obj >= OBJ_PRESET0 && obj <= OBJ_PRESET_LAST)     /* 0xA0000..0xBFFFF: free since 1.13 (see the map) */
         return 0xA0000u + (obj - OBJ_PRESET0) * 2u * ST_SECTOR + copy * ST_SECTOR;
+    if (obj >= OBJ_PROJX0 && obj <= OBJ_PROJX_LAST)       /* 0xC0000..0xDBFFF: the projects 5..18 (free, see the map) */
+        return 0xC0000u + (obj - OBJ_PROJX0) * 2u * ST_SECTOR + copy * ST_SECTOR;
     if (obj >= OBJ_UPRESET0)
         return 0xDC000u + (obj - OBJ_UPRESET0) * 2u * ST_SECTOR + copy * ST_SECTOR;
     return 0x97000u + (obj - OBJ_PROJECT0) * 2u * ST_SECTOR + copy * ST_SECTOR;

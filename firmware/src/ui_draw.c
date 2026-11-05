@@ -806,7 +806,7 @@ static uint32_t foot_rename(void)
     if (g == GR_USER)
         return 1u + (uint32_t)up_used(ui.uslot);
     if (g == GR_SLOTS)
-        return 1u + (uint32_t)graph_project_used((uint32_t)song.g[G_SLOT] - 1u);
+        return 1u + (uint32_t)graph_project_used(project_sel_k());
     return 0;
 }
 
@@ -1304,7 +1304,7 @@ static void draw_columns(void)
         int16_t *vp;
         const param_desc_t *d = page_desc(cur_page(), c, &vp);
         if (cur_page()->graph == GR_SLOTS && c == 1u) {   /* PROJECT: ERASE (1.5.5, #199) */
-            draw_act_column(1, "ERASE", graph_project_used((uint32_t)song.g[G_SLOT] - 1u) ? T_THEME : T_DIM, ICON_AUTO);
+            draw_act_column(1, "ERASE", graph_project_used(project_sel_k()) ? T_THEME : T_DIM, ICON_AUTO);
             continue;
         }
         if (!d || !d->label || d->label[0] == '-') {

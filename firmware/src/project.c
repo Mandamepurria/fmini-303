@@ -800,6 +800,29 @@ static char proj_name[PROJ_NAME_LEN + 1u]    /* the name of the music as it is n
 #define PROJ_NO_SLOT 0xFFu
 static uint8_t proj_cur = PROJ_NO_SLOT;      /* the slot the music was loaded from or last saved to (a rename of it
                                               * renames the music too); PROJ_NO_SLOT none (the editor's restore) */
+/* ACID build: 18 projects. proj_slot[0..3] (RAM) are the window on the BANK the selected project is in: bank 0 the
+ * projects 1..4 (OBJ_PROJECT0..), bank b >= 1 the projects 4b + 1..4b + 4 (OBJ_PROJX0 + 4 (b - 1) ..; bank 4 holds 17, 18
+ * only). Everything that reads or writes a slot (load, save, erase, rename, the editor, the chain) still does it on 0..3
+ * of the window; a bank change refetches the four from flash. The bank is kept in NOINIT with its magic, so a reset
+ * (the slots there are kept) finds the two together; a power-on finds garbage and starts at bank 0 */
+#define PROJ_TOTAL 18u
+#define PROJ_NBANK 5u
+static uint32_t proj_bank_raw __attribute__((section(".noinit")));
+#define PROJ_BANK_MAGIC 0xB4A5C000u
+static uint32_t proj_bank_get(void)
+{
+    return (proj_bank_raw & ~255u) == PROJ_BANK_MAGIC && (proj_bank_raw & 255u) < PROJ_NBANK ? proj_bank_raw & 255u : 0u;
+}
+static uint32_t proj_gl(uint32_t k) { return proj_bank_get() * 4u + (k & 3u); }   /* the project number 0..17 of window slot k */
+#if FELUCCA_FLASH
+static uint32_t proj_obj(uint32_t k)                 /* the storage object of window slot k (OBJ_COUNT: none, project 19..20) */
+{
+    uint32_t b = proj_bank_get();
+    if (!b)
+        return OBJ_PROJECT0 + (k & 3u);
+    return (b - 1u) * 4u + (k & 3u) <= OBJ_PROJX_LAST - OBJ_PROJX0 ? OBJ_PROJX0 + (b - 1u) * 4u + (k & 3u) : OBJ_COUNT;
+}
+#endif
 static union {                               /* serialized main-loop work; no retained expansion */
     project_store_t s;
     uint8_t raw[3840];                         /* (the staging of a backup object, up to a storage object: editor_backup.c) */
@@ -845,7 +868,7 @@ static void proj_fetch(uint32_t slot)
     project_store_t *q = &proj_slot[slot & 3u];
     int n;
     proj_wire_gen++;
-    n = st_load(OBJ_PROJECT0 + (slot & 3u), &proj_wire, sizeof proj_wire);
+    n = st_load(proj_obj(slot & 3u), &proj_wire, sizeof proj_wire);
     if (!proj_import(&proj_scratch, &proj_wire, n))
         memset(q->raw, 0, 4);
     else {
@@ -855,6 +878,28 @@ static void proj_fetch(uint32_t slot)
     }
 }
 #endif
+/* the window to bank b (0..4): the four slots refetched from flash (what was saved is there: a save writes through).
+ * No flash, no bank: the window stays; the music keeps its name but not its slot letter */
+static void proj_bank_set(uint32_t b)
+{
+#if FELUCCA_FLASH
+    uint32_t i;
+    if (b >= PROJ_NBANK || b == proj_bank_get() || !flash_ok)
+        return;
+    proj_bank_raw = PROJ_BANK_MAGIC | b;
+    for (i = 0; i < 4u; i++)
+        proj_fetch(i);
+    proj_cur = PROJ_NO_SLOT;
+#else
+    (void)b;
+#endif
+}
+static uint32_t proj_k(uint32_t g)                  /* project number 0..17 -> its slot of the window, the window moved to it */
+{
+    g = g < PROJ_TOTAL ? g : 0u;
+    proj_bank_set(g >> 2);
+    return g & 3u;
+}
 
 static void project_capture(project_t *p)
 {
@@ -913,14 +958,14 @@ static int project_save_as(uint32_t slot, const char *name)
 
 #if FELUCCA_FLASH
     if (flash_ok) {
-        if (st_save(OBJ_PROJECT0 + (slot & 3u), &proj_wire, sizeof proj_wire)) {
+        if (st_save(proj_obj(slot & 3u), &proj_wire, sizeof proj_wire)) {
             ui_message("SAVE ERROR");
             return 2;
         }
         memcpy(&proj_slot[slot & 3u], &proj_wire, sizeof proj_wire);
         proj_name_get(proj_name, (const uint8_t *)p->name);
         proj_cur = (uint8_t)(slot & 3u);
-        pat_from_set((slot & 3u) + 1u);
+        pat_from_set(proj_gl(slot) + 1u);
         ui_message("SAVED");
         return 0;
     }
@@ -928,7 +973,7 @@ static int project_save_as(uint32_t slot, const char *name)
     memcpy(&proj_slot[slot & 3u], &proj_wire, sizeof proj_wire);
     proj_name_get(proj_name, (const uint8_t *)p->name);
     proj_cur = (uint8_t)(slot & 3u);
-    pat_from_set((slot & 3u) + 1u);
+    pat_from_set(proj_gl(slot) + 1u);
     ui_message("SAVED (RAM)");
     return 0;
 }
@@ -1006,7 +1051,7 @@ static int project_rename(uint32_t slot, const char *name)
     proj_wire_gen++;
     if (!proj_pack(&proj_wire, p)) { ui_message("SAVE FORMAT ERROR"); return 2; }
 #if FELUCCA_FLASH
-    if (flash_ok && st_save(OBJ_PROJECT0 + (slot & 3u), &proj_wire, sizeof proj_wire)) {
+    if (flash_ok && st_save(proj_obj(slot & 3u), &proj_wire, sizeof proj_wire)) {
         ui_message("SAVE ERROR");
         return 2;
     }
@@ -1039,7 +1084,7 @@ static int project_erase(uint32_t slot)
         return 1;
     }
 #if FELUCCA_FLASH
-    if (flash_ok && st_save(OBJ_PROJECT0 + slot, &proj_wire, 0)) {
+    if (flash_ok && st_save(proj_obj(slot), &proj_wire, 0)) {
         ui_message("ERASE ERROR");
         return 2;
     }
@@ -1048,12 +1093,12 @@ static int project_erase(uint32_t slot)
     if (proj_cur == slot)
         proj_cur = PROJ_NO_SLOT;
     for (k = 0; k < NTRK; k++)
-        if (pat_from[k] == slot + 1u)
+        if (pat_from[k] == proj_gl(slot) + 1u)
             pat_from[k] = 0;
 #if FELUCCA_FLASH
     if (flash_ok) {
         char b[20] = "PROJECT A ERASED";
-        b[8] = (char)('A' + slot);
+        b[8] = (char)('A' + proj_gl(slot));
         ui_message(b);
         return 0;
     }
@@ -1161,7 +1206,7 @@ static void project_load(uint32_t slot)
     proj_bound(&proj_scratch);                          /* a retained RAM slot of an older format: as from flash */
     if (!project_restore_runtime(&proj_scratch)) {
         proj_cur = (uint8_t)(slot & 3u);
-        pat_from_set((slot & 3u) + 1u);
+        pat_from_set(proj_gl(slot) + 1u);
     }
 }
 
@@ -1203,6 +1248,14 @@ static void persist_boot(void)                    /* before settings_init / pane
 }
 
 static int project_used(uint32_t slot) { return proj_import(&proj_scratch, &proj_slot[slot & 3u], sizeof(project_store_t)); }
+static uint32_t project_sel_k(void) { return proj_k((uint32_t)song.g[G_SLOT] - 1u); }   /* the selected project's slot of the window */
+static void project_goto(uint32_t g)                /* project number 0..17: selected and loaded (Program Change on PROJECT CH) */
+{
+    if (g >= PROJ_TOTAL)
+        return;
+    song.g[G_SLOT] = (int16_t)(g + 1u);
+    project_load(proj_k(g));
+}
 
 /* Main loop only: no flash access or copies when the ISR changes rows. */
 static uint32_t chain_prepare(void)
@@ -1212,6 +1265,7 @@ static uint32_t chain_prepare(void)
         return 2;
     if (!chain_valid(&chain_config) || !chain_config.count)
         return 1;
+    proj_bank_set(0);                                   /* (the chain's A..D are projects 1..4) */
     for (i = 0; i < chain_config.count; i++)            /* the slots the lanes play (not the silent ones) */
         for (k = 0; k < NTRK; k++) {
             uint32_t s = chain_config.row[i].slot[k];

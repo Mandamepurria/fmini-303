@@ -52,6 +52,8 @@ static int settings_import(persist_t *p, int n)
                 b &= ~(3u << (2u * f));
         p->favorites.factory[15][28] = (uint8_t)b;
     }
+    if (p->favorites.factory[15][13] > 17u)        /* PROJECT CH (ui.c ui_prjch): unknown = the default, channel 9 */
+        p->favorites.factory[15][13] = 0;
     if (p->favorites.factory[15][27] > 7u)         /* SCREEN OFF (1.1.5, ui.c SCR_CODE): unknown = 0 (NEVER since 1.1.5.1) */
         p->favorites.factory[15][27] = 0;
     if (p->favorites.factory[15][11] > 8u)         /* PRESETS LIST's category (1.2, ui.c ui_lcat, CAT_*): unknown = none */

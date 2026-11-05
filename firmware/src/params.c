@@ -231,7 +231,7 @@ static const param_desc_t GP[G_COUNT] = {
 #else
     [G_INFO] = PD("CPU", F_INT, 0, 0, 0),
 #endif
-    [G_SLOT] = PD("SLOT", F_INT, 1, 4, 1),
+    [G_SLOT] = PD("SLOT", F_INT, 1, 18, 1),   /* (ACID build: 18 projects, project.c proj_bank) */
     [G_NAME] = PE("NAME", N_DASH, 0),
     [G_LOAD] = PE("LOAD", N_GO, 0),
     [G_SAVE] = PE("SAVE", N_GO, 0),

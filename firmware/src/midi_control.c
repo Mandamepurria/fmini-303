@@ -425,6 +425,12 @@ static void __attribute__((noinline)) midi_route_block(void)
  * noted here, 0x80 | d1 per track (a later one before the main loop wins): a sound load is the main loop's work
  * (undo, motion, FM6's patch), never the audio ISR's. ui.mpc (ui.c; a build without the UI: none) */
 static volatile uint16_t *const mpc_io;     /* 0x80 | program (bits 0..6) | bank << 8 (ui.c midi_pc_poll) */
+static volatile uint8_t *const prjch_io;    /* PROJECT CH (ui.c ui_prjch): 0 channel 9, 1..16 that channel, 17 OFF; none: no project channel */
+static int32_t project_ch(void)             /* the channel (0..15) whose Program Change 0..3 loads project 1..4, -1 none */
+{
+    uint32_t b = prjch_io ? *prjch_io : 17u;
+    return b == 0u ? 8 : b <= 16u ? (int32_t)b - 1 : -1;
+}
 
 /* Keep the occasional controller/panic dispatch outside the hot rendering loop. Channel voice messages only
  * (realtime and clock are handled in events_block, SysEx never reaches here). With ROUT CH1-4 channels
@@ -432,6 +438,10 @@ static volatile uint16_t *const mpc_io;     /* 0x80 | program (bits 0..6) | bank
  * channel aftertouch, Program Change, so they stay free for other instruments. */
 static void __attribute__((noinline)) midi_event(uint32_t st, uint32_t ch, uint32_t d1, uint32_t d2)
 {
+    if (st == 0xC0u && mpc_io && d1 < 18u && (int32_t)ch == project_ch()) {  /* PROJECT CH: Program Change 0..17 = project 1..18, on */
+        mpc_io[0] = (uint16_t)(0x80u | d1 | 255u << 8);                      /* any channel, a track's or not (ui.c midi_pc_poll) */
+        return;
+    }
     if (song.g[G_ROUTE] != 1 && !midi_in_block(ch))
         return;
     if (st == 0x90u || st == 0x80u)

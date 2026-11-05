@@ -1045,7 +1045,7 @@ static void edit_param(uint32_t slot, int32_t steps)
  * are dropped once done. Flash writes only while stopped; over the user's data: the dialog */
 static void act_do(void)
 {
-    uint32_t c = act_col(), id, k = (uint32_t)song.g[G_SLOT] - 1u;
+    uint32_t c = act_col(), id, k = project_sel_k();
     if (!c--)
         return;
     if (cur_page()->graph == GR_EVENTS) {
