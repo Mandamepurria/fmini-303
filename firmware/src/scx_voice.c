@@ -6,6 +6,9 @@
 #include "scx_voice.h"
 #include "scx_fixed.h"
 #include "scx_tables.h"
+#ifndef SCX_BLK
+#define SCX_BLK 32                              /* the longest block the engine renders (the host's CTL) */
+#endif
 
 #ifdef SCX_TRACE                                 /* fm1/trace: the voice's insides, sample by sample */
 #define SCX_TRACE_N 400
@@ -978,19 +981,19 @@ static void render_general(scx_voice_t *v, const scx_prep_t *p, int32_t *out, ui
 /* The same arithmetic as render_general, sample for sample, in passes over the block: control
  * (envelopes, LFOs, pitch, pulse width, gain), OSC1, OSC2, then mix + filter. Each pass is a tight
  * loop whose state fits the registers; one loop doing everything spilled ~120 values per sample. */
-static const int32_t S_zero[256];              /* an LFO that is not routed reads as 0 */
+static const int32_t S_zero[SCX_BLK];              /* an LFO that is not routed reads as 0 */
 /* the passes' buffers: one set per lane (scx_voice.h), so that two cores can render voices at once */
 typedef struct {
-    int32_t  amp[256], s1[256], s2[256], nz[256], e1[256], l1[256], l2[256];
-    int32_t  s2x[256];                          /* OSC2's mirrored pulse, for the ring modulator */
-    uint32_t dt1[256], dt2[256], pw1[256];
-    int32_t  key[256];                          /* the portamento pitch per sample, for key tracking */
-    int64_t  pw2[256];                          /* OSC2's PWM sum before OSC1's cross-mod term */
-    int32_t  wrap[256];                         /* OSC1's wrap per sample, as the sync's tau (Q16), or -1 */
-    int32_t  prev1[256];                        /* OSC1's previous sample, for OSC1 -> OSC2 cross-mod */
-    int32_t  mix[256];
-    uint32_t seg_at[257];                       /* the filter's coefficient segments: where each starts */
-    int32_t  seg_c[256][3];                     /* and its a1, a2, a3 */
+    int32_t  amp[SCX_BLK], s1[SCX_BLK], s2[SCX_BLK], nz[SCX_BLK], e1[SCX_BLK], l1[SCX_BLK], l2[SCX_BLK];
+    int32_t  s2x[SCX_BLK];                          /* OSC2's mirrored pulse, for the ring modulator */
+    uint32_t dt1[SCX_BLK], dt2[SCX_BLK], pw1[SCX_BLK];
+    int32_t  key[SCX_BLK];                          /* the portamento pitch per sample, for key tracking */
+    int64_t  pw2[SCX_BLK];                          /* OSC2's PWM sum before OSC1's cross-mod term */
+    int32_t  wrap[SCX_BLK];                         /* OSC1's wrap per sample, as the sync's tau (Q16), or -1 */
+    int32_t  prev1[SCX_BLK];                        /* OSC1's previous sample, for OSC1 -> OSC2 cross-mod */
+    int32_t  mix[SCX_BLK];
+    uint32_t seg_at[SCX_BLK + 1];                       /* the filter's coefficient segments: where each starts */
+    int32_t  seg_c[SCX_BLK][3];                     /* and its a1, a2, a3 */
 } scx_lane_t;
 static scx_lane_t LANE[SCX_LANES];
 
@@ -1228,7 +1231,7 @@ void scx_voice_render_lane(scx_voice_t *v, const scx_prep_t *p, int32_t *out, ui
     if (v->env2.stage == ENV_IDLE && !v->amp_gate) { scx_voice_advance(v, p, n); return; }
     v->stepped = 1;
 #ifndef SCX_TEST_GENERAL                         /* tests/run.sh: the general path for every patch */
-    if (p->cross2 || n > 256)
+    if (p->cross2 || n > SCX_BLK)
 #endif
     { render_general(v, p, out, n); return; }
     const scx_layer_t *L = p->L;
