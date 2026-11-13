@@ -24,7 +24,7 @@ jobs:
         with:
           path: ~/fw-AC79_AIoT_SDK
           key: ac79-sdk-AC79NN_SDK_V1.2.1_2023-12-13
-      - name: AC79 SDK (retries: gitee drops connections now and then)
+      - name: AC79 SDK with retries (gitee drops the connection now and then)
         if: steps.sdk.outputs.cache-hit != 'true'
         run: |
           git config --global http.version HTTP/1.1
