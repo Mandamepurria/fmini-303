@@ -12,8 +12,9 @@
  *     voice mode; the presets are LEGATO). The slide's speed is the SLIDE knob (an RC on the pitch, as the 303's).
  *     Leave the part's own GLIDE at 0: the engine does the slide.
  *   - the pitch follows the part's pitch bend, tuning and vibrato (vmod_t.pitch16).
- *   - the amplitude is the voice's own VCA (engine_t.ownenv): the part's ADSR is not used, velocity only
- *     chooses accent / no accent.
+ *   - the amplitude is the part's ADSR (the ENV page: ATK DEC SUS REL, and velocity as the part sets it), as any engine's. The 303's own
+ *     VCA stays only as a fast, click-free level step (an accent is louder): it no longer closes with the gate. The presets set the
+ *     ADSR the way a 303 plays (ATK 0, SUS full, a short REL).
  *   - the part's state lives in the part's engine memory (engine_t.mem), one voice a part.
  * The eight EDIT values are the 303's front panel: E0 CUT, E1 RES, E2 ENV MOD, E3 DECAY, E4 ACCENT, E5 SLIDE (0 = no slides),
  * E6 DRIVE (0..31 each), E7 WAVE (SAW, SQR, and the HI RES versions of both). The other knobs of Smileyface (attack, tuning, sub, sweep, poles,
@@ -33,7 +34,6 @@
 #define ACID_CUT_G ACID_CUT_G1
 #define ACID_OSH 0
 #endif
-#define ACID_REL_RATE 2200      /* how fast the volume closes at the end of a note (Smileyface's REL_RATE) */
 #define ACID_ACC_VEL 110u       /* a velocity above this is an accented note */
 
 typedef struct {                 /* the knobs of Smileyface's knobs_t that this engine uses, each 0..31 */
@@ -147,18 +147,6 @@ static void acid_note_on(track_t *t, voice_t *v)
     acid_gate_on(a, v->note, v->vel > ACID_ACC_VEL, a->kn.sld && a->gate && a->live);   /* SLIDE 0: no slides */
 }
 
-static int acid_done(track_t *t, voice_t *v)            /* the voice's VCA has closed after the gate went off */
-{
-    acid_t *a = acid_of(t);
-    if (!a || !a->live)
-        return 1;
-    if (v->gate || a->gate)
-        return 0;
-    if (a->vca > 40 || a->v1 > 40 || a->vs > 40)
-        return 0;
-    a->live = 0;
-    return 1;
-}
 
 static int32_t acid_core_step(acid_t *a)                /* one step of the oscillator and the ladder; x out (Q19) */
 {
@@ -250,7 +238,7 @@ static void acid_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
             if ((a->tick++ & 7u) == 0u) {               /* control rate: 5.5 kHz */
                 const uint32_t accx = a->acc;
                 const uint32_t swp_on = kn->hir != 15u;
-                int32_t tg = a->gate ? (accx && swp_on ? 32767 : 24000) : 0, e, idx, qi, amt, pp;
+                int32_t tg = accx && swp_on ? 32767 : 24000, e, idx, qi, amt, pp;     /* (the level: the part's ADSR opens and closes it) */
                 uint32_t ep;
                 {
                     int32_t d = a->tp - a->p, st = acid_mulq(d, ACID_GLIDE_G[kn->sld]);
@@ -265,7 +253,7 @@ static void acid_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const 
                 }
                 a->va = 1 << 24;                         /* VOL DEC at 31: the volume holds for the whole gate */
                 {
-                    int32_t vr = a->gate ? (accx ? 9000 : ACID_ATK_G[kn->atk]) : ACID_REL_RATE;
+                    int32_t vr = accx ? 9000 : ACID_ATK_G[kn->atk];
                     a->v1 += acid_mulq(tg - a->v1, vr);
                     a->vca += acid_mulq(a->v1 - a->vca, vr);
                 }
@@ -371,7 +359,5 @@ static const engine_t ENG_ACID = {
     .render = acid_render,
     .knob = {P_E0, P_E1, P_E2, P_E3},
     .poly = 1,
-    .ownenv = 1,
-    .done = acid_done,
     .mem = sizeof(acid_t),
 };

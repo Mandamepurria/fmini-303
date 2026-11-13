@@ -7,26 +7,48 @@ typedef struct {
     uint32_t user, filter;
 } favorites_t;
 static favorites_t favorites __attribute__((section(".pool")));
-/* rows 14 and 15 of factory[] are the MIDI LEARN map and the settings (midi_learn.c, below): the engines that have
- * favourites are 0..13. FMINI (14, 1.7) has none: a favourite of its is not taken (the stars stay off) */
-#define FAV_ENGINES 14u
+/* rows 14 and 15 of factory[] are the MIDI LEARN map and the settings (midi_learn.c, below): the engines 0..13 keep their own row.
+ * ACID build: FMINI (14), ACID (15), OBERV (16) and SYNTHEX (17) have favourites too, in the two rows of the engines retired in 1.13
+ * (GRAIN, 8, and SLICE, 13), which nothing reads: FMINI's 200 slots take 25 bytes of row 13; ACID (6 presets) row 8 byte 0, OBERV (70) bytes 1..9,
+ * SYNTHEX (80) bytes 10..19. A star a retired engine had left there (a setting kept from before 1.13) would show on those; the bytes
+ * hold exactly the presets (ACID 6 in one byte: 8 bits, OBERV 70 in 9: 72, SYNTHEX 80 in 10); the editor and the UI bound a star by the engine's npresets. The rest of the table, the editor and the UI only meet favorite_has / favorite_set */
+#define FAV_ROWS 14u
+static const struct { uint8_t row, off, n; } FAV_EXT[NENGINES > 14 ? NENGINES - 14 : 1] = {
+    {13, 0, 25},    /* 14 FMINI: 200 slots */
+    {8, 0, 1},      /* 15 ACID */
+    {8, 1, 9},      /* 16 OBERV */
+    {8, 10, 10},    /* 17 SYNTHEX */
+};
+_Static_assert(NENGINES <= 18, "favorites.c FAV_EXT: a row of bytes for each engine past 14");
+static uint8_t *fav_byte(uint32_t engine, uint32_t preset)      /* the byte that holds engine's preset's star, 0 = it has none */
+{
+    if (engine < FAV_ROWS)
+        return preset < 256u ? &favorites.factory[engine][preset / 8u] : 0;
+    if (engine < NENGINES && engine - 14u < sizeof FAV_EXT / sizeof FAV_EXT[0] && preset / 8u < FAV_EXT[engine - 14u].n)
+        return &favorites.factory[FAV_EXT[engine - 14u].row][FAV_EXT[engine - 14u].off + preset / 8u];
+    return 0;
+}
 static int favorite_has(uint32_t engine, uint32_t preset)
 {
+    uint8_t *b;
     if (engine == NENGINES)
         return preset < UP_SLOTS && ((favorites.user >> preset) & 1u);
-    return engine < NENGINES && engine < FAV_ENGINES && preset < 256u &&
-        ((favorites.factory[engine][preset / 8u] >> (preset % 8u)) & 1u);
+    b = fav_byte(engine, preset);
+    return b && ((*b >> (preset % 8u)) & 1u);
 }
 static int favorite_set(uint32_t engine, uint32_t preset, int on)
 {
-    if (engine > NENGINES || (engine == NENGINES ? preset >= UP_SLOTS : engine >= FAV_ENGINES || preset >= 256u))
+    uint8_t *b;
+    if (engine > NENGINES || (engine == NENGINES && preset >= UP_SLOTS))
+        return 0;
+    if (engine != NENGINES && !fav_byte(engine, preset))
         return 0;
     if (favorite_has(engine, preset) == !!on) return 0;
     if (engine == NENGINES) {
         if (on) favorites.user |= 1u << preset;
         else favorites.user &= ~(1u << preset);
     } else {
-        uint8_t *b = &favorites.factory[engine][preset / 8u];
+        b = fav_byte(engine, preset);
         if (on) *b |= (uint8_t)(1u << (preset % 8u));
         else *b &= (uint8_t)~(1u << (preset % 8u));
     }
