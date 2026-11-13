@@ -382,7 +382,7 @@ static int32_t sqrt16(int32_t x)
 /* a / b in Q16 for 0 <= a < b, by a 32-bit division on both scaled to 16 bits */
 static inline int32_t frac16(uint32_t a, uint32_t b)
 {
-    while (b >= 0x10000u) { a >>= 1; b >>= 1; }
+    while (b >= 65536u) { a >>= 1; b >>= 1; }
     return (int32_t)((a << 16) / b);
 }
 

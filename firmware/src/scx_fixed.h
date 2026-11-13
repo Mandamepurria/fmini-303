@@ -52,18 +52,18 @@ static inline uint32_t scx_udiv64(uint64_t n, uint32_t d)
     uint32_t un32 = s ? (u1 << s) | (u0 >> (32 - s)) : u1, un10 = u0 << s;
     uint32_t un1 = un10 >> 16, un0 = un10 & 0xFFFFu;
     uint32_t q1 = un32 / vn1, rhat = un32 - q1 * vn1;
-    while (q1 >= 0x10000u || q1 * vn0 > ((rhat << 16) | un1)) {
+    while (q1 >= 65536u || q1 * vn0 > ((rhat << 16) | un1)) {
         q1--;
         rhat += vn1;
-        if (rhat >= 0x10000u) break;
+        if (rhat >= 65536u) break;
     }
     uint32_t un21 = (un32 << 16) + un1 - q1 * d;
     uint32_t q0 = un21 / vn1;
     rhat = un21 - q0 * vn1;
-    while (q0 >= 0x10000u || q0 * vn0 > ((rhat << 16) | un0)) {
+    while (q0 >= 65536u || q0 * vn0 > ((rhat << 16) | un0)) {
         q0--;
         rhat += vn1;
-        if (rhat >= 0x10000u) break;
+        if (rhat >= 65536u) break;
     }
     return (q1 << 16) | q0;
 }
