@@ -217,6 +217,7 @@ typedef struct {
     obv_lad_coef_t lc;
     uint32_t inc1, inc2, pw1, pw2;
     int32_t amp0, amp1;
+    int32_t dcq;                  /* the DC blocker's state (Q10) */
     int32_t pitch16, target16;
     int32_t drift;
     uint32_t lfo_blk;
@@ -446,6 +447,8 @@ static void obv_voice_render(obv_v_t *v, const obv_g_t *g, int32_t *out, uint32_
         y = obv_sat_knee(y);
         amp = amp0 + ((da * (int32_t)i) >> 4);
         y = (y * amp) >> 16;
+        v->dcq += y - (v->dcq >> 10);           /* a DC blocker, 7 Hz: the saturation of a hard-driven voice leaves an offset that moves with its envelope */
+        y -= v->dcq >> 10;                      /* (the state keeps ten more bits: with nothing in, it settles on exactly 0 out) */
         out[i] += y;                            /* (the pan is the host's: PAN, SPREAD) */
     }
     (void)hm; (void)first;

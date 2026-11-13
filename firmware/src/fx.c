@@ -14,7 +14,7 @@ static union {                          /* ROOM's allpasses; SPRING's allpass ch
     int32_t sp[(556 + 441) / 2];
 } rev_u __attribute__((section(".pool")));
 #define rev_ap (rev_u.ap)
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
 /* FMini-1: the reverb types' own memory, shared (only one runs; a change clears it all). ROOM's right channel: 4 combs + 2 allpasses (+23
  * samples each, Freeverb's stereo spread); SPRING's second spring (4096 loop + its allpass states); PLATE (Dattorro's, half rate);
  * CLOUD's two extra diffusers. 23 KB of the pool */
@@ -26,7 +26,7 @@ static struct {
     int32_t dly_lp;
     uint16_t comb_i[4], ap_i[2];
     int32_t comb_lp[4];
-    uint8_t rtype;                       /* the reverb model running (G_RTYPE: 0 ROOM, 1 SPRING, 2 HALL) */
+    uint8_t rtype;                       /* the reverb model running (rev_run's number: Felucca's 0 ROOM, 1 SPRING, 2 HALL; FMini-1's and REV5's 0 ROOM, 1 HALL, 2 PLATE, 3 SPRING, 4 CLOUD) */
     uint16_t sp_w;                       /* SPRING: the loop's write index (SP_MASK) */
     int32_t sp_lp, sp_hp, sp_he, sp_size;   /* .. its loop low-pass, low cut (and its remainder), the loop
                                              * length (Q8, glides) */
@@ -41,6 +41,8 @@ static struct {
     uint32_t rv_c[2], rv_n[2], rv_i[2];  /* REVERSE: the two heads' position in their sweep, its length and its triangle's slope (65536 / length) */
     uint32_t rv_p[2];                    /* .. their read positions (absolute write counts) */
     uint8_t ds_on;                       /* dside holds this block's stereo difference of the delay / chorus */
+#endif
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
     uint16_t comb_ir[4], ap_ir[2];       /* ROOM's right channel: the same, its own indices and low-passes */
     int32_t comb_lpr[4];
     uint16_t sp2_w;                      /* SPRING's second spring: the same as sp_* */
@@ -98,7 +100,7 @@ _Static_assert(sizeof rev_comb / 2u >= SP_LEN && sizeof rev_u.sp / 4u >= 4u * (S
 #define HL_LOUD 32                       /* a line this loud (two samples' sum) rounds its gain to the nearest */
 #define HL_OUT 4                         /* the outputs' gain: the level of ROOM's tail */
 static const uint16_t HL_LEN[HL_NL] = {467, 509, 547, 593, 631, 673, 709, 743};   /* (+1 each: the mirror) */
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
 #define HL_NAPX 4u                       /* CLOUD: two more diffusers (in rev_x), denser */
 static const uint16_t HL_AP[HL_NAPX] = {131, 307, 89, 223};
 static const int16_t HL_APG[HL_NAPX] = {11469, 10240, 9830, 9011};  /* Q14: 0.7, 0.625, 0.6, 0.55 */
@@ -110,7 +112,7 @@ _Static_assert(467 + 509 + 547 + 593 + 631 + 673 + 709 + 743 + HL_NL <= sizeof r
                131 + 307 <= sizeof rev_u.ap / 2u, "HALL in ROOM's buffers");
 _Static_assert(CTL % 2u == 0u && HL_NC + 2u * HL_MOD + 2u < 467u && HL_NC <= 131u, "HALL: one wrap a block at most");
 static struct {                          /* HALL's state (in the pool: no .bss) */
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
     uint16_t i[HL_NL], d[HL_NAPX];       /* the lines' write indices, the diffusers' */
     uint8_t mode;                        /* 0 HALL, 1 CLOUD (longer, darker, 4 diffusers) */
 #else
@@ -314,7 +316,7 @@ static uint32_t delay_samples(void)
     return s < 16u ? 16u : s >= DLY_LEN ? DLY_LEN - 1u : s;
 }
 
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
 static const uint16_t REV_COMB_R[4] = {1139, 1211, 1300, 1379};   /* ROOM's right channel: +23 samples (Freeverb's stereo spread) */
 static const uint16_t REV_AP_R[2] = {579, 464};
 _Static_assert(1139 + 1211 + 1300 + 1379 + 579 + 464 <= RX_LEN, "ROOM's right channel in rev_x");
@@ -397,12 +399,13 @@ static __attribute__((noinline)) void rev_room(const int32_t *rev_in, int32_t *o
 }
 #endif
 
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
 /* FMini-1: the output of HALL, CLOUD, SPRING and PLATE goes through a low-pass (~5 kHz at 44.1 kHz): two cascaded one-poles, k = 16680
  * (Q15), one state per stream (rlp_out: the wet bus, rlp_side: the stereo difference), reset by rev_clear. The hiss of a long tail is in
  * its treble; ROOM has none and is not filtered. The steps are clamped, so the 32-bit products cannot overflow. */
 #define RLP_K 16680
 static int32_t rlp_out[2], rlp_side[2];
+#if FELUCCA_FMINI_ONLY
 static inline int32_t rlp_run(int32_t *st, int32_t x)
 {
     int32_t d = clamp(x - st[0], -128000, 128000);
@@ -411,6 +414,21 @@ static inline int32_t rlp_run(int32_t *st, int32_t x)
     st[1] += (d * RLP_K) >> 15;
     return st[1];
 }
+#else
+/* The 4 part build runs the bus all the time (as Felucca's does), where FMini-1 stops it when nothing sends to it. A step rounded down
+ * sticks a state at -1 for ever once the input is silent (the +-1 offset on the stereo difference the tests found); the step is rounded up
+ * in size (never past the input: K < 1) and the state reaches exactly 0, as the tails of ROOM and the old HALL do. */
+static inline int32_t rlp_step(int32_t d)
+{
+    return d >= 0 ? (d * RLP_K + 32767) >> 15 : -((-d * RLP_K + 32767) >> 15);
+}
+static inline int32_t rlp_run(int32_t *st, int32_t x)
+{
+    st[0] += rlp_step(clamp(x - st[0], -128000, 128000));
+    st[1] += rlp_step(clamp(st[0] - st[1], -128000, 128000));
+    return st[1];
+}
+#endif
 /* SPRING (see the top), stereo: a tank has two springs: the left output is the first (the loop in rev_comb, as before), the right a second, 19 %
  * longer one (its loop in rev_x, its own wobble): the two sound apart. spring_one: one spring's block into dst (assigned) */
 static __attribute__((noinline)) void spring_one(int16_t *ln, int32_t *ap, uint16_t *spw, int32_t *splp, int32_t *sphp, int32_t *sphe,
@@ -530,7 +548,7 @@ static uint32_t exp2_neg(uint32_t x)
 /* the lines' gains for SIZE s: RT60 = 0.5 s * 2^(s / 30); a line of D samples (22.05 kHz) loses 60 dB in
  * RT60 * 22050 / D passes: g = 2^(-D * 3 log2(10) / (22050 * RT60)) = 2^(-D * 59.2 / 65536 * 2^(-s / 30)),
  * at most 0.99, over sqrt(7) (the matrix's rows have 7 entries of +-1: / sqrt(7) makes it orthogonal) */
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
 /* FMini-1: per mode: HALL RT60 0.5 s * 2^(s / 30) (0.5 .. 9.4 s); CLOUD 3 s * 2^(s / 42) (3 .. 24 s), its lines allowed up to 0.9985 */
 static __attribute__((noinline)) void hall_gains(int32_t s, uint32_t mode)
 {
@@ -635,7 +653,7 @@ static __attribute__((noinline)) void rev_hall(const int32_t *rev_in, int32_t *o
 {
     int16_t *b = rev_comb, *a = rev_ap;
     uint32_t i, k, s, m, d;
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
     int32_t kd = HL_KD(hl.mode == 1u ? 30 + RDAMP * 97 / 127 : RDAMP);   /* (CLOUD: never wide open: a dark, soft tail) */
     uint32_t nap = hl.mode == 1u ? HL_NAPX : HL_NAP;
 #else
@@ -643,7 +661,7 @@ static __attribute__((noinline)) void rev_hall(const int32_t *rev_in, int32_t *o
 #endif
     int32_t mp = hl.m, sp = hl.s;
     (void)n;
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
     if (hl.sz != song.g[G_RSIZE] + 1 + (int32_t)hl.mode * 256)
         hall_gains(song.g[G_RSIZE], hl.mode);
 #else
@@ -651,7 +669,7 @@ static __attribute__((noinline)) void rev_hall(const int32_t *rev_in, int32_t *o
         hall_gains(song.g[G_RSIZE]);
 #endif
     hall_send(rev_in);
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
     for (k = 0; k < nap; k++) {                         /* the diffusers (CLOUD's extra two in rev_x) */
         int16_t *q = k < HL_NAP ? a : rev_x.s + (k == 2u ? 0u : HL_AP[2]);
         d = hl.d[k];
@@ -720,7 +738,7 @@ static __attribute__((noinline)) void rev_hall(const int32_t *rev_in, int32_t *o
     }
     for (i = 0; i < HL_NC; i++) {                       /* back to 44.1 kHz, between samples */
         int32_t mm = (hl.l[i] + hl.r[i]) * HL_OUT, ss = (hl.l[i] - hl.r[i]) * HL_OUT;
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
         out[2u * i] += rlp_run(rlp_out, (mp + mm) >> 1);
         out[2u * i + 1u] += rlp_run(rlp_out, mm);
         rev_side[2u * i] = rlp_run(rlp_side, (sp + ss) >> 1);
@@ -738,7 +756,7 @@ static __attribute__((noinline)) void rev_hall(const int32_t *rev_in, int32_t *o
     hl.side = 1;
 }
 
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
 /* PLATE (type 2): Dattorro's plate (J. Audio Eng. Soc. 1997, "Effect Design" part 1), at half the rate and half his lengths (a smaller, denser
  * plate), in rev_x: the send (hall_send) -> 4 input diffusers -> a figure-eight tank: each side a modulated allpass, a delay, a low-pass
  * (TONE: the plate's damping), the decay gain (DECAY: the loop's gain 0.12 .. 0.7 a tank: ~0.8 .. 5 s), an allpass and a delay, its end feeding the other side; the
@@ -867,7 +885,7 @@ static __attribute__((noinline)) void rev_plate(const int32_t *rev_in, int32_t *
 static void rev_clear(void)
 {
     uint32_t i;
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
     rlp_out[0] = rlp_out[1] = rlp_side[0] = rlp_side[1] = 0;
 #endif
     for (i = 0; i < sizeof rev_comb / 2u; i++)
@@ -880,7 +898,7 @@ static void rev_clear(void)
         hl.lp[i] = hl.le[i] = 0;
     fx.sp_lp = fx.sp_hp = fx.sp_he = 0;
     hl.x = hl.m = hl.s = hl.hp = hl.he = 0;
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
     for (i = 0; i < RX_LEN; i++)
         rev_x.s[i] = 0;
     for (i = 0; i < 4u; i++)
@@ -922,11 +940,16 @@ static int32_t part_buf[CTL];                            /* a part's block (mix_
 #define SM1_b part_buf
 #endif
 
+#if FELUCCA_REV5 && !FELUCCA_FMINI_ONLY
+/* the 4 part build keeps G_RTYPE as it was stored (0 ROOM, 1 SPRING, 2 HALL: a project keeps its reverb) and appends PLATE (3) and CLOUD (4);
+ * rev_run numbers the models as FMini-1 does (0 ROOM, 1 HALL, 2 PLATE, 3 SPRING, 4 CLOUD). The stored number -> rev_run's: */
+static const uint8_t REV5_MODEL[5] = {0, 3, 1, 2, 4};
+#endif
 /* run reverb model ty over a block, added to out (+ rev_side). FMini-1: ty is the TYPE (0 ROOM, 1 HALL, 2 PLATE, 3 SPRING, 4 CLOUD);
  * Felucca's: 0 ROOM, 1 SPRING, 2 HALL */
 static void rev_run(uint32_t ty, const int32_t *rev_in, int32_t *out, uint32_t n)
 {
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
     if (ty == 0u)
         rev_room(rev_in, out, n);
     else if (ty == 2u)
@@ -1228,7 +1251,7 @@ static void fx_buses(const int32_t *cho_in, const int32_t *dly_in, const int32_t
     (void)dmix, (void)col;
 #endif
     rt = song.g[G_RTYPE];
-#if FELUCCA_FMINI_ONLY
+#if FELUCCA_FMINI_ONLY || FELUCCA_REV5
     rt = rt < 0 ? 0 : rt > 4 ? 4 : rt;                    /* (a stored 5, CLOUD before SHIMMER went, is the last one too) */
     if (!rev_act) {                                       /* OFF: its buffers cleared once, nothing runs */
         if (fx.rev_on) {
@@ -1239,6 +1262,9 @@ static void fx_buses(const int32_t *cho_in, const int32_t *dly_in, const int32_t
         return;
     }
     fx.rev_on = 1;
+#if !FELUCCA_FMINI_ONLY
+    rt = REV5_MODEL[rt];                                  /* (the list's order -> the models') */
+#endif
 #else
     rt = rt == 1 || rt == 2 ? rt : 0;
 #endif

@@ -8,6 +8,12 @@
 #include <stdint.h>
 
 /* ------------------------------------------------------------ sizes --- */
+/* ACID build: FMini-1's reverb models in the 4 part build as well (fx.c, params.c): ROOM in stereo, HALL with its RT60 and a ~5 kHz output
+ * low-pass (the hiss of a long tail is in its treble), SPRING with two springs, PLATE (Dattorro's) and CLOUD (3 .. 24 s, dark). G_RTYPE keeps
+ * its stored numbers (0 ROOM, 1 SPRING, 2 HALL) and appends PLATE (3), CLOUD (4). 23 KB more of the pool (fx.c rev_x). 0 = Felucca's three. */
+#ifndef FELUCCA_REV5
+#define FELUCCA_REV5 1
+#endif
 #if FELUCCA_FMINI_ONLY
 #define NVOICE 12                /* FMini-1: 12 voices when the instrument is set to POLY */
 #else

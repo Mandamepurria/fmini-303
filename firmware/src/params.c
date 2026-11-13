@@ -60,6 +60,8 @@ static const char *const N_RTYPE[] = {"ROOM", "HALL", "PLATE", "SPRING", "CLOUD"
 static const char *const N_DLYTYPE[] = {"ANALOG", "DIGITAL", "TAPE", "P-PONG", "MULTI", "SLAP", "REVERSE"};   /* G_DTIME's use */
 static const char *const N_CHOTYPE[] = {"STEREO", "JUNO", "MULTI"};                                       /* G_ENGGO's use */
 static const char *const N_DRVTYPE[] = {"SOFT", "TUBE"};                                                  /* G_INFO's use */
+#elif FELUCCA_REV5
+static const char *const N_RTYPE[] = {"ROOM", "SPRING", "HALL", "PLATE", "CLOUD"};   /* G_RTYPE: the reverb bus's model (fx.c REV5_MODEL) */
 #else
 static const char *const N_RTYPE[] = {"ROOM", "SPRING", "HALL"};   /* G_RTYPE: the reverb bus's model (fx.c) */
 #endif
@@ -517,7 +519,7 @@ static const page_t PAGES[] = {
     {"INSERT", FAM_FX, SC_TRACK, GR_INS, {P_ITYPE, P_IA, P_IB, P_IC}},   /* 1.5: the track's INSERT (fx.c) */
     {"INSERT 2", FAM_FX, SC_TRACK, GR_INS, {P_IMIX, 0xFF, 0xFF, 0xFF}},  /* .. its dry / wet */
     {"DLY", FAM_FX, SC_GLOBAL, GR_NONE, {G_DTIME, G_DFDBK, G_DCOLOR, G_DMIX}},
-    {"REVERB", FAM_FX, SC_GLOBAL, GR_NONE, {G_RTYPE, G_RSIZE, G_RDAMP, 0xFF}},   /* TYPE: ROOM / SPRING / HALL */
+    {"REVERB", FAM_FX, SC_GLOBAL, GR_NONE, {G_RTYPE, G_RSIZE, G_RDAMP, 0xFF}},   /* TYPE: ROOM / SPRING / HALL (/ PLATE / CLOUD with REV5) */
     {"CHORUS", FAM_FX, SC_GLOBAL, GR_NONE, {G_CRATE, G_CDEPTH, 0xFF, 0xFF}},
     {"SCL", FAM_SCL, SC_TRACK, GR_SCALE, {P_ROOT, P_SCALE, P_QUANT, P_TRANS}},
     {"CHORD", FAM_SCL, SC_TRACK, GR_CHORD, {P_CHRD, P_VOIC, 0xFF, 0xFF}},   /* SCL again: the chord keys (chord.c) */
