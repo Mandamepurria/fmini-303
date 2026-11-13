@@ -16,11 +16,29 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install Pillow fonttools
-      - name: JieLi toolchain and AC79 SDK
+      - name: JieLi toolchain
+        run: tools/get_toolchain.sh
+      - name: Cache the AC79 SDK
+        id: sdk
+        uses: actions/cache@v4
+        with:
+          path: ~/fw-AC79_AIoT_SDK
+          key: ac79-sdk-AC79NN_SDK_V1.2.1_2023-12-13
+      - name: AC79 SDK (retries: gitee drops connections now and then)
+        if: steps.sdk.outputs.cache-hit != 'true'
         run: |
-          tools/get_toolchain.sh
-          git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 \
-              https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$HOME/fw-AC79_AIoT_SDK"
+          git config --global http.version HTTP/1.1
+          git config --global http.postBuffer 524288000
+          for i in 1 2 3 4 5 6; do
+            rm -rf "$HOME/fw-AC79_AIoT_SDK"
+            if git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 \
+                https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$HOME/fw-AC79_AIoT_SDK"; then
+              exit 0
+            fi
+            echo "clone failed (try $i), waiting"
+            sleep 20
+          done
+          exit 1
       - run: ./build.sh
       - uses: actions/upload-artifact@v4
         with:
