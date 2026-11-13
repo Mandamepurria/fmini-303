@@ -35,6 +35,10 @@ static uint8_t eng_mem_owner[NPART];       /* engine index + 1 whose state is in
 #include "eng_fmini.c"           /* FMINI (FMini-1): a three-oscillator ladder-filter monosynth */
 #include "eng_acid.c"            /* ACID: Smileyface's 303 voice (eng_acid_tables.h), one voice a part */
 ENG_MEM_FITS("ACID", sizeof(acid_t));
+#include "eng_oberv.c"          /* OBERV: OberVave's analog poly voice (eng_oberv_*.h) */
+ENG_MEM_FITS("OBERV", sizeof(obv_mem_t));
+#include "eng_synthex.c"        /* SYNTHEX: Scintilla's Elka Synthex voice and its 80 programs (scx_*.h, eng_synthex_*.h) */
+ENG_MEM_FITS("SYNTHEX", sizeof(synx_mem_t));
 #if FELUCCA_FM4
 #include "eng_digital.c"        /* DIGITAL: four-operator FM (retired; FELUCCA_FM4=1 builds it) */
 #endif
@@ -79,6 +83,8 @@ static const engine_t *const ENGINES[NENGINES] = {
     &ENG_RETIRED,                /* 13: SLICE (retired 1.13) */
     &ENG_FMINI,                  /* 14 (ENGI_FMINI) */
     &ENG_ACID,                   /* 15 (ENGI_ACID) */
+    &ENG_OBERV,                  /* 16 (ENGI_OBERV) */
+    &ENG_SYNTHEX,                /* 17 (ENGI_SYNTHEX) */
 };
 
 /* a track's engine number as an index (the audio paths: a compare, cheaper than % NENGINES; a bad number: 0) */
@@ -111,6 +117,8 @@ static const uint8_t ENGINE_ORDER[NENG_SHOWN] = {
     12,                          /* FM6 */
     ENGI_FMINI,                   /* FMINI */
     ENGI_ACID,                    /* ACID */
+    ENGI_OBERV,                   /* OBERV */
+    ENGI_SYNTHEX,                 /* SYNTHEX */
 #if FELUCCA_FM4
     1,                           /* DIGITAL */
 #endif

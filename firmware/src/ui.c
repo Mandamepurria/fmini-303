@@ -444,6 +444,8 @@ static int page_visible(uint32_t i)
         return TSEL->eng_req % NENGINES == ENGI_FM6;
     if (PAGES[i].graph >= GR_FMG0 && PAGES[i].graph <= GR_FMG6)      /* FMINI's panel (ui_fmini.c) */
         return TSEL->eng_req % NENGINES == ENGI_FMINI;
+    if (PAGES[i].graph >= GR_OBV0 && PAGES[i].graph <= GR_OBV11)     /* OBERV's panel (ui_oberv.c) */
+        return TSEL->eng_req % NENGINES == ENGI_OBERV;
     return !(PAGES[i].fam == FAM_EDIT && PAGES[i].id[0] >= P_FM1_ATK &&
              PAGES[i].id[0] <= P_FM4_LEVEL) || (FELUCCA_FM4 && TSEL->eng_req % NENGINES == ENGI_DIGITAL);
 }

@@ -928,6 +928,8 @@ static void project_capture(project_t *p)
                 p->t[i].p[P_E7] = (int16_t)(sl & 0x7F);
                 p->fm6[i][FG_SIZE] = (uint8_t)(0x40u | ((uint32_t)sl >> 7 & 1u));
             }
+        } else if (trk[i].eng_req == ENGI_OBERV) {          /* OBERV: its patch (63 parameters and a name) in the same slot */
+            obv_capture(&trk[i], i, p->fm6[i]);
         } else {
             fm6_pack(fm6_patch[i], p->fm6[i]);
         }
@@ -1160,6 +1162,13 @@ static int project_restore_runtime(const project_t *input)
                 fmini_set_patch(k, p->fm6[k]);
                 fmini_adopt(k);
                 fm6_unpack(FM6_INIT, v);
+            } else if (e == ENGI_OBERV) {                /* an OBERV track: the same; the program in E7 is not reloaded over it */
+                uint32_t j;
+                obv_set_patch(k, p->fm6[k]);
+                obv_slot_seen[k] = (uint8_t)clamp(t->p[P_E7], 0, (int)OBV_NFACTORY);
+                for (j = 0; j < 7u; j++)
+                    obv_e_seen[k][j] = (uint8_t)clamp(t->p[P_E0 + j], 0, 127);
+                fm6_unpack(FM6_INIT, v);
             } else {
                 fm6_unpack(p->fm6[k], v);
             }
@@ -1389,6 +1398,7 @@ static uint32_t autosave_sig(void)
         h = as_mix(h, t->step, sizeof t->step);
         h = as_mix(h, fm6_patch[i], sizeof fm6_patch[i]);
         h = as_mix(h, fmini_patch[i], FG_SIZE);
+        h = as_mix(h, obv_patch[i], OBV_PB);
     }
     for (i = 0; i < G_COUNT; i++)
         if (i != G_SLOT && i != G_NAME && i != G_LOAD && i != G_SAVE)

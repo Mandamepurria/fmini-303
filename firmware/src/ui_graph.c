@@ -13,6 +13,7 @@
 /* the height ADSR and LFO are drawn on: 100 px, or (MENU > LARGE's strip: draw_graph) the strip's ~ 56 */
 static int32_t graph_ht = 100;
 #include "ui_fmini.c"                                  /* EDIT > CTRL OSC MIX FILT F.ENV A.ENV FX: FMINI's panel */
+#include "ui_oberv.c"                                 /* EDIT > OSC 1 .. SENDS: OBERV's panel (12 pages) */
 #include "ui_fm6op.c"                                /* EDIT > OPERATOR, OP ENV, OPERATOR 2: FM6's operators (their charts below) */
 
 /* Matches voice.c: attack is linear, decay and release are exponential
@@ -1106,6 +1107,13 @@ static uint32_t graph_signature(void)
     if ((pg->scope == SC_ENGINE || fop_page(pg->graph)) && t->eng_req % NENGINES == ENGI_FM6)   /* the patch (PAT's algorithm,
                                                      * levels, FB; the operator pages: the operator, the stage) */
         h ^= (fm6_pgen[(t - trk) % NTRK] + 1u) * 2246822519u + (fop_op + 1u) * 40503u + (fop_stg + 1u) * 7919u;
+    if (obp_page(pg->graph) && t->eng_req % NENGINES == ENGI_OBERV) {   /* OBERV's patch: every byte, and the seven EDIT values */
+        uint32_t j, tr = (uint32_t)(t - trk) % NTRK;
+        for (j = 0; j < OB_NPARAM; j++)
+            h = (h ^ obv_patch[tr][j]) * 16777619u;
+        for (j = 0; j < 8u; j++)
+            h = (h ^ (uint32_t)t->p[P_E0 + j]) * 16777619u;
+    }
     if (fmg_page(pg->graph) && t->eng_req % NENGINES == ENGI_FMINI) {   /* the patch, the cursor, the hot knob */
         h ^= (fmini_pgen[(t - trk) % NTRK] + 1u) * 2246822519u + (uint32_t)(fmg_cur[fmg_pg()] + 1u) * 40503u;
         h ^= (ui.hot_t ? ui.hot_col + 1u : 0u) * 65537u;

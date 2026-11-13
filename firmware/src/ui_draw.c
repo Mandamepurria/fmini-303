@@ -1160,6 +1160,21 @@ static void draw_columns(void)
         }
         return;
     }
+    if (obp_page(cur_page()->graph)) {                   /* OBERV: the page's four parameters (ui_oberv.c) */
+        for (c = 0; c < 4u; c++) {
+            const char *lb, *u;
+            int32_t r, lo, hi;
+            uint32_t ic;
+            if (!obp_ok() || obp_param(obp_pg(), c) < 0) {
+                draw_column(c, "", "", "", T_THEME, -1, ICON_NONE);
+                continue;
+            }
+            obp_card(c, &lb, val, &u, &r, &ic);
+            obp_range(obp_pg(), c, &lo, &hi);
+            draw_column(c, lb, val, u, VAL(c), r, ic);
+        }
+        return;
+    }
     if (fop_page(cur_page()->graph)) {                   /* FM6: OP, then three of its bytes (ui_fm6op.c) */
         for (c = 0; c < 4u; c++) {
             const char *lb, *u;

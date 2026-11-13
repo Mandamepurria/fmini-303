@@ -83,7 +83,7 @@ static uint32_t upf_tag(const up_rec_t *r)       /* FNV-1a of the record without
     return h;
 }
 
-static int upf_fm6(uint32_t k) { return up_used(k) && (up_rec(k)->engine == ENGI_FM6 || up_rec(k)->engine == ENGI_FMINI); }   /* (FMINI: its patch in the same slot) */
+static int upf_fm6(uint32_t k) { return up_used(k) && (up_rec(k)->engine == ENGI_FM6 || up_rec(k)->engine == ENGI_FMINI || up_rec(k)->engine == ENGI_OBERV); }   /* (FMINI: its patch in the same slot) */
 
 /* a 128-byte packed record's 7-bit bytes, 8 to 7 bytes (UPF_PK) and back (the voice bank too, fm6_vbank.c) */
 static void upf_pk_get(const uint8_t *d, uint8_t *pk)
@@ -136,6 +136,10 @@ static void upf_set(uint32_t k, const uint8_t *pk)
         memset(c, 0, sizeof c);
         memcpy(c, pk, FG_SIZE);
         fmini_sanitize(c);
+    } else if (up_rec(k)->engine == ENGI_OBERV) {     /* OBERV: its patch, every parameter inside its range, the name printable */
+        memset(c, 0, sizeof c);
+        memcpy(c, pk, OBV_PB);
+        obv_sanitize(c);
     } else {
         fm6_unpack(pk, v);
         fm6_pack(v, c);
@@ -215,6 +219,18 @@ static void upf_track_load(track_t *t, uint32_t k)
         fmini_adopt(tr);
         return;
     }
+    if (tr < NTRK && t->eng_req == ENGI_OBERV) {      /* OBERV: the preset's own patch, else the program its PROGRAM (E7) names loads */
+        uint32_t j;
+        if (upf_get(k, pk)) {
+            obv_slot_seen[tr] = 255u;
+            return;
+        }
+        obv_set_patch(tr, pk);
+        obv_slot_seen[tr] = (uint8_t)clamp(t->p[P_E7], 0, (int)OBV_NFACTORY);   /* (an own sound: 0; a program's: it is that program) */
+        for (j = 0; j < 7u; j++)
+            obv_e_seen[tr][j] = (uint8_t)clamp(t->p[P_E0 + j], 0, 127);
+        return;
+    }
     if (tr >= NTRK || t->eng_req != ENGI_FM6)
         return;
     if (upf_get(k, pk)) {
@@ -233,6 +249,8 @@ static int upf_store(uint32_t k, uint32_t tr)
     if (up_rec(k)->engine == ENGI_FMINI) {
         memset(pk, 0, sizeof pk);
         memcpy(pk, fmini_patch[tr % NTRK], FG_SIZE);
+    } else if (up_rec(k)->engine == ENGI_OBERV) {
+        obv_capture(&trk[tr % NTRK], tr % NTRK, pk);
     } else {
         fm6_pack(fm6_patch[tr % NTRK], pk);
     }

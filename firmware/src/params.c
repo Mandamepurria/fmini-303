@@ -495,7 +495,8 @@ enum { SC_TRACK, SC_GLOBAL, SC_ENGINE, SC_STEP, SC_TRK };   /* SC_TRK: the TRACK
 enum { GR_NONE, GR_ADSR, GR_LFO, GR_STEPS, GR_ARP, GR_SCALE, GR_FX, GR_ROLL, GR_BROWSE, GR_SLOTS, GR_USER, GR_TRK,
        GR_SLCR, GR_MOD, GR_PATS, GR_SONG, GR_TOOLS, GR_CHORD, GR_EVENTS,
        GR_FMOP, GR_FMOP2, GR_FMENV, GR_INS,
-       GR_FMG0, GR_FMG1, GR_FMG2, GR_FMG3, GR_FMG4, GR_FMG5, GR_FMG6 };   /* GR_FMG0..6: FMINI's seven panel pages (ui_fmini.c) */   /* (GR_STEPS: SEQ TOOLS' knobs; GR_FMOP..: FM6's operator pages, ui_fm6op.c) */
+       GR_FMG0, GR_FMG1, GR_FMG2, GR_FMG3, GR_FMG4, GR_FMG5, GR_FMG6,   /* GR_FMG0..6: FMINI's seven panel pages (ui_fmini.c) */
+       GR_OBV0, GR_OBV1, GR_OBV2, GR_OBV3, GR_OBV4, GR_OBV5, GR_OBV6, GR_OBV7, GR_OBV8, GR_OBV9, GR_OBV10, GR_OBV11 };   /* OBERV's twelve (ui_oberv.c) */   /* (GR_STEPS: SEQ TOOLS' knobs; GR_FMOP..: FM6's operator pages, ui_fm6op.c) */
 
 typedef struct {
     const char *title;
@@ -535,6 +536,18 @@ static const page_t PAGES[] = {
     {"F.ENV", FAM_EDIT, SC_TRACK, GR_FMG4, {0xFF, 0xFF, 0xFF, 0xFF}},
     {"A.ENV", FAM_EDIT, SC_TRACK, GR_FMG5, {0xFF, 0xFF, 0xFF, 0xFF}},
     {"FMINI FX", FAM_EDIT, SC_TRACK, GR_FMG6, {0xFF, 0xFF, 0xFF, 0xFF}},
+    {"OSC 1", FAM_EDIT, SC_TRACK, GR_OBV0, {0xFF, 0xFF, 0xFF, 0xFF}},          /* OBERV only (ui_oberv.c): OberVave's panel, */
+    {"OSC 2", FAM_EDIT, SC_TRACK, GR_OBV1, {0xFF, 0xFF, 0xFF, 0xFF}},          /* four knobs a page */
+    {"OSC MOD", FAM_EDIT, SC_TRACK, GR_OBV2, {0xFF, 0xFF, 0xFF, 0xFF}},
+    {"O.FILTER", FAM_EDIT, SC_TRACK, GR_OBV3, {0xFF, 0xFF, 0xFF, 0xFF}},
+    {"FILTER 2", FAM_EDIT, SC_TRACK, GR_OBV4, {0xFF, 0xFF, 0xFF, 0xFF}},
+    {"O.F.ENV", FAM_EDIT, SC_TRACK, GR_OBV5, {0xFF, 0xFF, 0xFF, 0xFF}},
+    {"O.A.ENV", FAM_EDIT, SC_TRACK, GR_OBV6, {0xFF, 0xFF, 0xFF, 0xFF}},
+    {"LFO", FAM_EDIT, SC_TRACK, GR_OBV7, {0xFF, 0xFF, 0xFF, 0xFF}},
+    {"LFO DEST", FAM_EDIT, SC_TRACK, GR_OBV8, {0xFF, 0xFF, 0xFF, 0xFF}},
+    {"LFO 2", FAM_EDIT, SC_TRACK, GR_OBV9, {0xFF, 0xFF, 0xFF, 0xFF}},
+    {"O.VOICE", FAM_EDIT, SC_TRACK, GR_OBV10, {0xFF, 0xFF, 0xFF, 0xFF}},
+    {"SENDS", FAM_EDIT, SC_TRACK, GR_OBV11, {0xFF, 0xFF, 0xFF, 0xFF}},
     {"OP1 ENV", FAM_EDIT, SC_TRACK, GR_ADSR, {P_FM1_ATK, P_FM1_DEC, P_FM1_SUS, P_FM1_REL}},
     {"OP2 ENV", FAM_EDIT, SC_TRACK, GR_ADSR, {P_FM2_ATK, P_FM2_DEC, P_FM2_SUS, P_FM2_REL}},
     {"OP3 ENV", FAM_EDIT, SC_TRACK, GR_ADSR, {P_FM3_ATK, P_FM3_DEC, P_FM3_SUS, P_FM3_REL}},
